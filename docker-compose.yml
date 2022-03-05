@@ -1,0 +1,8 @@
+version: '2'
+services:
+  python3:
+    build: .
+    container_name: 'mrac_vehicle'
+    tty: true
+    volumes:
+      - ./:/usr/src/app
