@@ -1,5 +1,6 @@
 -e adaptive_system
 -e vehicle_dynamics
+-e util
 anyio==3.5.0
 argon2-cffi==21.3.0
 argon2-cffi-bindings==21.2.0
@@ -67,6 +68,7 @@ requests==2.27.1
 scipy==1.7.3
 Send2Trash==1.8.0
 six==1.16.0
+slycot==0.4.0
 sniffio==1.2.0
 sympy==1.9
 terminado==0.13.2

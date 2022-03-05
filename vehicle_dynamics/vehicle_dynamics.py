@@ -39,3 +39,46 @@ def vehicle_dynamics(state, input, param):
   ]
 
   return rhs
+
+
+def linear_vehicle_model(param, vx):
+  ## x = [vy, dphi, phi_e, y_e]
+
+  A = [
+      [-(param.cf + param.cr)/param.mass/vx, -(vx + (param.lf*param.cf - param.lr*param.cr)/param.mass/vx), 0.0, 0.0 ],
+      [(-param.cf*param.lf + param.cr*param.lr)/param.Iz/vx, -(param.lf*param.lf*param.cf + param.lr*param.lr*param.cr)/param.Iz/vx, 0.0, 0.0 ],
+      [0.0, 1.0, 0.0, 0.0 ],
+      [1.0, 0.0, vx, 0.0 ],
+    ]
+  B = [
+      [param.cf/param.mass],
+      [param.lf*param.cf/param.Iz],
+      [0.0],
+      [0.0],
+    ]
+
+  C = [0, 0, 0, 1]
+  D = 0
+
+  return A, B, C, D
+
+def linear_vehicle_model_fb(param, vx, kp, ke):
+  ## x = [vy, dphi, phi_e, y_e]
+
+  A = [
+      [-(param.cf + param.cr)/param.mass/vx, -(vx + (param.lf*param.cf - param.lr*param.cr)/param.mass/vx), kp*param.cf/param.mass, ke*param.cf/param.mass ],
+      [(-param.cf*param.lf + param.cr*param.lr)/param.Iz/vx, -(param.lf*param.lf*param.cf + param.lr*param.lr*param.cr)/param.Iz/vx, kp*param.lf*param.cf/param.Iz, ke*param.lf*param.cf/param.Iz ],
+      [0.0, 1.0, 0.0, 0.0 ],
+      [1.0, 0.0, vx, 0.0 ],
+    ]
+  B = [
+      [param.cf/param.mass],
+      [param.lf*param.cf/param.Iz],
+      [0.0],
+      [0.0],
+    ]
+
+  C = [0, 0, 0, 1]
+  D = 0
+
+  return A, B, C, D

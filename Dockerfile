@@ -4,7 +4,8 @@ USER root
 WORKDIR /usr/src/app
 
 RUN apt-get update
-RUN apt-get install -y build-essential
+RUN apt-get install -y build-essential gfortran libopenblas-dev
+
 RUN pip install --upgrade pip
 RUN pip install --upgrade setuptools
 
