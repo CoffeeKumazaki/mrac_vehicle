@@ -49,7 +49,7 @@ def lcsim(simT, dt, plant, controller):
 
 
 #road = np.loadtxt("laneChangePath.txt", delimiter=" ")
-road = np.loadtxt("../data/path.txt", delimiter=" ")
+road = np.loadtxt("../data/path.txt", delimiter=" ", dtype=np.float32)
 # road = np.append(road, np.array([[200.0, 4.0, 0.0, 0.0]]), axis=0)
 tree = KDTree(road[:, :2])
 
