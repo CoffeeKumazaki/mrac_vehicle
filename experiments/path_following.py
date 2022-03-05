@@ -10,7 +10,7 @@ from vehicle import *
 from mrac.controller import *
 from mrac.parameter_estimator import *
 
-def lcsim(simT, dt, plant, controller):
+def sim(simT, dt, plant, controller):
   
   us = []
   yrs = []
@@ -48,9 +48,7 @@ def lcsim(simT, dt, plant, controller):
   return {'t': Ts, 'yp': yps, 'yr': yrs, 'e': es, 'theta': thetas, 'u': us, 'r': rs, 'plant': px}
 
 
-#road = np.loadtxt("laneChangePath.txt", delimiter=" ")
 road = np.loadtxt("../data/path.txt", delimiter=" ", dtype=np.float32)
-# road = np.append(road, np.array([[200.0, 4.0, 0.0, 0.0]]), axis=0)
 tree = KDTree(road[:, :2])
 
 plantParam = VehicleParam()
@@ -118,7 +116,7 @@ adaptive_ctrl.theta = estTheta
 
 plant = Vehicle(plantParam, plantInit, road)
 
-res = lcsim(60, 0.01, plant, adaptive_ctrl)
+res = sim(60, 0.01, plant, adaptive_ctrl)
 
 np.savetxt("../data/output/adaptive_track.csv", np.array(res["plant"]), delimiter=" ")
 np.savetxt("../data/output/adaptive_track_yp.csv", np.array(res["yp"]), delimiter=" ")
