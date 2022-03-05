@@ -44,8 +44,8 @@ def solve_opt_parameters(kp: float, zp: list, rp: list, km: float, zm: list, rm:
     eqs.append(eqt)
 
 
-  print(len(rhs.all_coeffs()))
-  print(len(t1+t2+t3))
+  print("number of equations ", len(rhs.all_coeffs()))
+  print("number of parameters", len(t1+t2+t3))
 
   sol = solve(eqs, t1 + t2 + t3)
 
