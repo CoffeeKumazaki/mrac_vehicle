@@ -12,16 +12,7 @@ from mrac.parameter_estimator import *
 
 def sim(simT, dt, plant, controller):
   
-  us = []
-  yrs = []
-  yps = []
-  es = []
-  rs = []
-  thetas = []
-  px = []
-
   Ts = np.arange(0,simT, dt)
-  e = 0.0
 
   for t in tqdm.tqdm(Ts):
 
@@ -30,6 +21,7 @@ def sim(simT, dt, plant, controller):
     yp = plant.observe()
 
     u = adaptive_ctrl.calc_u(yp, r)
+    u = np.clip(u, -1.0, 1.0)
     xp = plant.x
     plant.update(dt, [-xp[5]*xp[4]*plant.vehicle_param.mass, u])
     #plant.update(dt, u)
@@ -37,15 +29,10 @@ def sim(simT, dt, plant, controller):
     controller.update(dt, yp, r)
 
     yr = controller.ref.observe()
-    us.append(u[0])
-    px.append(plant.x)
-    rs.append(r[0])
-    yps.append(yp[0])
-    yrs.append(yr[0])
-    es.append(yp[0]-yr[0])
-    thetas.append(controller.theta.T[0])
 
-  return {'t': Ts, 'yp': yps, 'yr': yrs, 'e': es, 'theta': thetas, 'u': us, 'r': rs, 'plant': px}
+    e = yp[0]-yr[0]
+    theta = controller.theta.T[0]
+    yield t, yp[0], yr[0], e, theta, u[0], r[0], plant.x
 
 
 road = np.loadtxt("../data/path.txt", delimiter=" ", dtype=np.float32)
@@ -67,11 +54,11 @@ plantParam.lf = 2.5
 plantParam.lr = 1.5
 plantParam.Iz = 20600.0
 
-vx = 20.0
+vx = 5.0
 plantInit = [road[0,0], road[0,1], road[0,2], vx, 0, 0, 0]
 ## Plant model
 #A, B, C, D = vehicleModel(plantParam, vx)
-A, B, C, D = linear_vehicle_model_fb(plantParam, 20.0, -1.0, -0.05)
+A, B, C, D = linear_vehicle_model_fb(plantParam, vx, -1.0, -0.05)
 pss = ss(A, B, C, D)
 plant_lti = LinearSystem(pss, 0, "plant")
 
@@ -100,7 +87,7 @@ Lp = -np.identity(phi_dim)*1
 lp = np.identity(phi_dim)*1
 phi = LinearSystem(ss(Lp, lp, np.identity(phi_dim), 0), 0, 'phi')
 
-adaptive_ctrl = AdaptiveControllerN2(ref, w1, w2, phi, 1.0)
+adaptive_ctrl = AdaptiveControllerN2(ref, w1, w2, phi, 10.0)
 
 # set estimated param
 
@@ -112,12 +99,46 @@ print(tf(pss))
 print(tf(mss))
 
 estTheta = estimate_theta(pss, mss, 3, [1,1])
-adaptive_ctrl.theta = estTheta
+print(estTheta)
+adaptive_ctrl.theta[-2] = -0.05
+# adaptive_ctrl.theta = estTheta
 
 plant = Vehicle(plantParam, plantInit, road)
 
-res = sim(60, 0.01, plant, adaptive_ctrl)
+res = sim(180, 0.01, plant, adaptive_ctrl)
 
-np.savetxt("../data/output/adaptive_track.csv", np.array(res["plant"]), delimiter=" ")
-np.savetxt("../data/output/adaptive_track_yp.csv", np.array(res["yp"]), delimiter=" ")
-np.savetxt("../data/output/adaptive_track_theta.csv", np.array(res["theta"]), delimiter=" ")
+
+ts = []
+us = []
+yrs = []
+yps = []
+es = []
+rs = []
+thetas = []
+pxs = []
+while (1):
+  try:
+    t, yp, yr, e, theta, u, r, px = next(res)
+
+    ts.append(t)
+    yps.append(yp)
+    yrs.append(yr)
+    es.append(e)
+    us.append(u)
+    rs.append(r)
+    thetas.append(theta)
+    pxs.append(px)
+  
+  except: 
+    print("finish")
+    break
+
+
+np.savetxt("../data/output/no_init_param/adaptive_track_vx_05_gain_10_theta.csv", np.array(thetas), delimiter=" ")
+np.savetxt("../data/output/no_init_param/adaptive_track_vx_05_gain_10_u.csv", np.array(us), delimiter=" ")
+np.savetxt("../data/output/no_init_param/adaptive_track_vx_05_gain_10.csv", np.array(pxs), delimiter=" ")
+np.savetxt("../data/output/no_init_param/adaptive_track_vx_05_gain_10_yp.csv", yps, delimiter=" ")
+np.savetxt("../data/output/no_init_param/adaptive_track_vx_05_gain_10_e.csv", es, delimiter=" ")
+#np.savetxt("../data/output/no_init_param/adaptive_track.csv", np.array(res["plant"]), delimiter=" ")
+#np.savetxt("../data/output/no_init_param/adaptive_track_yp.csv", np.array(res["yp"]), delimiter=" ")
+#np.savetxt("../data/output/no_init_param/adaptive_track_theta.csv", np.array(res["theta"]), delimiter=" ")
