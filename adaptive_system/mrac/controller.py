@@ -1,6 +1,5 @@
 import numpy as np
 
-
 class AdaptiveController:
   
   def __init__(self, ref, w1, w2, gamma):
