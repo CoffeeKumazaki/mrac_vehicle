@@ -55,10 +55,10 @@ def solve_opt_parameters(kp: float, zp: list, rp: list, km: float, zm: list, rm:
 
   return res
 
-def estimate_theta(plant_tf, reference_tf, omega_dim, lambda_tf_coeffs):
+def estimate_theta(plant_tf, reference_tf, omega_dim, lambda0_tf_coeffs):
   kp, zp, rp = get_tf_params(plant_tf)
   km, zm, rm = get_tf_params(reference_tf)
-  theta = solve_opt_parameters(kp, zp, rp, km, zm, rm, omega_dim, lambda_tf_coeffs)
+  theta = solve_opt_parameters(kp, zp, rp, km, zm, rm, omega_dim, lambda0_tf_coeffs)
 
   y_dim = reference_tf.noutputs;
   etheta = np.zeros((1+ y_dim + 2*omega_dim, 1))
@@ -80,3 +80,28 @@ def estimate_theta(plant_tf, reference_tf, omega_dim, lambda_tf_coeffs):
 
 
   return etheta
+
+
+
+def current_tf(plant_tf, theta, omega_dim, lambda_tf_coeffs):
+  '''
+  Iannou & Sun
+  Chapter 6.3 
+  P.339
+  '''
+  s = symbols('s')
+
+  kp, zp_coef, rp_coef = get_tf_params(plant_tf)
+
+  zp = Poly(zp_coef, s)
+  rp = Poly(rp_coef, s)
+
+  theta_1_alpha = Poly(theta[0:omega_dim], s)
+  theta_2_alpha = Poly(theta[omega_dim:2*omega_dim], s)
+
+  lbd = Poly(lambda_tf_coeffs, s)
+
+  num = theta[-1]*kp*zp*lbd
+  den = ( (lbd - theta_1_alpha)*rp - kp*zp*(theta_2_alpha + theta[-2]*lbd) )
+
+  return np.array(num.all_coeffs()).astype(float) , np.array(den.all_coeffs()).astype(float) 
