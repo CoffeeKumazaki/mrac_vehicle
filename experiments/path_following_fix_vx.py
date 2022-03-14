@@ -9,6 +9,7 @@ from vehicle_dynamics import *
 from vehicle import *
 from mrac.controller import *
 from mrac.parameter_estimator import *
+from mrac.controller_designer import *
 
 def sim(simT, dt, plant, controller):
   
@@ -55,29 +56,18 @@ plantParam.Iz = 20600.0
 '''
 
 vx = 10.0
-plantInit = [road[0,0], road[0,1], road[0,2], vx, 0, 0, 0]
-## Plant model
-#A, B, C, D = vehicleModel(plantParam, vx)
-A, B, C, D = linear_vehicle_model_fb(plantParam, vx, -1.0, -0.05)
-pss = ss(A, B, C, D)
-plant_lti = LinearSystem(pss, 0, "plant")
+lbd0 = [1, 1]
 
+## Initial parameter
+plantInit = [road[0,0], road[0,1], road[0,2], vx, 0, 0, 0]
 
 ## Reference model
 modelParam = VehicleParam()
-A, B, C, D = linear_vehicle_model_fb(modelParam, vx, -2.0, -0.05)
+A, B, C, D = linear_vehicle_model_fb(modelParam, 20.0, -2.0, -0.05)
 mss = ss(A, B, C, D)
 ref = LinearSystem(mss, 0, "ref")
 
-sv_dim = 3
-L = np.zeros((sv_dim, sv_dim))
-l = np.zeros((sv_dim, 1))
-L[0, 0] = -15.8965517241379
-L[0, 1] = -201.103448275861
-L[0, 2] = -186.206896551724
-L[1, 0] = 1.0 
-L[2, 1] = 1.0
-l[0, 0] = 1.0
+sv_dim, L, l = designed_state_space_eq(mss, lbd0)
 w1 = LinearSystem(ss(L, l, np.identity(sv_dim), 0), 0, "w1")
 w2 = LinearSystem(ss(L, l, np.identity(sv_dim), 0), 0, "w2")
 

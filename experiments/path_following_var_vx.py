@@ -12,6 +12,7 @@ from vehicle_dynamics import *
 from vehicle import *
 from mrac.controller import *
 from mrac.parameter_estimator import *
+from mrac.controller_designer import *
 
 cvxopt.solvers.options['show_progress'] = False
 
@@ -104,30 +105,19 @@ plantParam.Iz = 20600.0
 
 vx = 5.0
 target_vx = 10.0
+lbd0 = [1, 1]
 
-plantInit = [road[100,0], road[100,1], road[100,2], vx, 0, 0, 0]
-## Plant model
-#A, B, C, D = vehicleModel(plantParam, vx)
-A, B, C, D = linear_vehicle_model_fb(plantParam, vx, -1.0, -0.05)
-pss = ss(A, B, C, D)
-plant_lti = LinearSystem(pss, 0, "plant")
-
+## Initial parameter
+plantInit = [road[0,0], road[0,1], road[0,2], vx, 0, 0, 0]
 
 ## Reference model
 modelParam = VehicleParam()
-A, B, C, D = linear_vehicle_model_fb(modelParam, vx, -2.0, -0.05)
+A, B, C, D = linear_vehicle_model_fb(modelParam, 20.0, -2.0, -0.05)
 mss = ss(A, B, C, D)
 ref = LinearSystem(mss, 0, "ref")
 
-sv_dim = 3
-L = np.zeros((sv_dim, sv_dim))
-l = np.zeros((sv_dim, 1))
-L[0, 0] = -15.8965517241379
-L[0, 1] = -201.103448275861
-L[0, 2] = -186.206896551724
-L[1, 0] = 1.0 
-L[2, 1] = 1.0
-l[0, 0] = 1.0
+
+sv_dim, L, l = designed_state_space_eq(mss, lbd0)
 w1 = LinearSystem(ss(L, l, np.identity(sv_dim), 0), 0, "w1")
 w2 = LinearSystem(ss(L, l, np.identity(sv_dim), 0), 0, "w2")
 
@@ -154,7 +144,7 @@ print(tf(mss))
 estTheta = estimate_theta(pss, mss, 3, [1,1])
 print(estTheta)
 adaptive_ctrl.theta[-2] = -0.05
-# adaptive_ctrl.theta = estTheta
+adaptive_ctrl.theta = estTheta
 
 plant = Vehicle(plantParam, plantInit, road)
 
@@ -191,12 +181,12 @@ while (1):
     break
 
 
-np.savetxt("../data/output/no_init_param/adaptive_vehicle_vx_05to10_100_gain_10_theta.csv", np.array(thetas), delimiter=" ")
-np.savetxt("../data/output/no_init_param/adaptive_vehicle_vx_05to10_100_gain_10_u.csv", np.array(us), delimiter=" ")
-np.savetxt("../data/output/no_init_param/adaptive_vehicle_vx_05to10_100_gain_10_fx.csv", np.array(fxs), delimiter=" ")
-np.savetxt("../data/output/no_init_param/adaptive_vehicle_vx_05to10_100_gain_10.csv", np.array(pxs), delimiter=" ")
-np.savetxt("../data/output/no_init_param/adaptive_vehicle_vx_05to10_100_gain_10_yp.csv", yps, delimiter=" ")
-np.savetxt("../data/output/no_init_param/adaptive_vehicle_vx_05to10_100_gain_10_e.csv", es, delimiter=" ")
+np.savetxt("../data/output/with_init_param/adaptive_vehicle_vx_05to10_mvx_20_gain_10_theta.csv", np.array(thetas), delimiter=" ")
+np.savetxt("../data/output/with_init_param/adaptive_vehicle_vx_05to10_mvx_20_gain_10_u.csv", np.array(us), delimiter=" ")
+np.savetxt("../data/output/with_init_param/adaptive_vehicle_vx_05to10_mvx_20_gain_10_fx.csv", np.array(fxs), delimiter=" ")
+np.savetxt("../data/output/with_init_param/adaptive_vehicle_vx_05to10_mvx_20_gain_10.csv", np.array(pxs), delimiter=" ")
+np.savetxt("../data/output/with_init_param/adaptive_vehicle_vx_05to10_mvx_20_gain_10_yp.csv", yps, delimiter=" ")
+np.savetxt("../data/output/with_init_param/adaptive_vehicle_vx_05to10_mvx_20_gain_10_e.csv", es, delimiter=" ")
 #np.savetxt("../data/output/no_init_param/adaptive_track.csv", np.array(res["plant"]), delimiter=" ")
 #np.savetxt("../data/output/no_init_param/adaptive_track_yp.csv", np.array(res["yp"]), delimiter=" ")
 #np.savetxt("../data/output/no_init_param/adaptive_track_theta.csv", np.array(res["theta"]), delimiter=" ")
