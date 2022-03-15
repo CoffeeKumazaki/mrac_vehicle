@@ -2,7 +2,7 @@ import numpy as np
 
 class AdaptiveController:
   
-  def __init__(self, ref, w1, w2, gamma):
+  def __init__(self, ref, w1, w2, gamma, umin = None, umax = None):
     self.ref = ref
     self.w1 = w1
     self.w2 = w2
@@ -10,6 +10,9 @@ class AdaptiveController:
     self.theta = np.zeros((param_num, 1))
     self.theta[-1] = 1.0
     self.gamma = gamma*np.identity(param_num)
+
+    self.umin = umin
+    self.umax = umax
 
   def update(self, dt, yp, r):
 
@@ -25,6 +28,10 @@ class AdaptiveController:
   def calc_u(self, yp, r, verbose=False):
     w = np.array([np.hstack([self.w1.state.T[0], self.w2.state.T[0], yp[0], r[0]])]).T
     u = self.theta.T.dot(w)
+
+    if (self.umin is not None and self.umax is not None):
+      return np.clip(np.array(u), self.umin, self.umax)
+
     return np.array(u)
 
   def safe_r(self, yp, r):
@@ -43,9 +50,9 @@ class AdaptiveController:
 
 class AdaptiveControllerN2(AdaptiveController):
 
-  def __init__(self, ref, w1, w2, phi, gamma):
+  def __init__(self, ref, w1, w2, phi, gamma, umin = None, umax = None):
 
-    super(AdaptiveControllerN2, self).__init__(ref, w1, w2, gamma)
+    super(AdaptiveControllerN2, self).__init__(ref, w1, w2, gamma, umin, umax)
     self.phi = phi
 
   def update(self, dt, yp, r):
@@ -68,7 +75,10 @@ class AdaptiveControllerN2(AdaptiveController):
     w = np.array([np.hstack([self.w1.state.T[0], self.w2.state.T[0], yp[0], r[0]])]).T
     u = self.theta.T.dot(w) - self.phi.state.T.dot(self.gamma).dot(self.phi.state)*e
 
-    return np.array(u)# np.clip(np.array(u), a_min=-0.1, a_max=0.1)
+    if (self.umin is not None and self.umax is not None):
+      return np.clip(np.array(u), self.umin, self.umax)
+
+    return np.array(u)
 
   def safe_r(self, yp, r):
     e = yp - self.ref.observe()
