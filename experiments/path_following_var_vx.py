@@ -82,37 +82,71 @@ def calc_acc(mass, current_velocity, target_velocity, uref, umax, umin, th=1.8):
   # print(sol["primal objective"])
   return sol["x"][0]
 
+def data_header(plant_param, reference_param):
+  return f'''
+    Plant Parameters 
+      type : {plant_type}
+    {plant_param}
+     
+    MRAC parameter
+     gain : {adaptive_gain}
+     lbd0 : {lbd0}
+     vx   : {vx}
+     umax : {umax} 
+     umin : {umin} 
+    Reference Parameters
+    {reference_param}
 
+    use initial guess : {use_initial_guess}
+
+    analytical adaptive param:
+    {estTheta} 
+  '''
 
 road = np.loadtxt("../data/path.txt", delimiter=" ", dtype=np.float32)
 tree = KDTree(road[:, :2])
 
 plantParam = VehicleParam()
-plantParam.mass = 1727.0
-plantParam.cf = 94000.0
-plantParam.cr = 94000.0
-plantParam.lf = 1.17
-plantParam.lr = 1.42
-plantParam.Iz = 2867.0
-'''
-plantParam.mass = 5500.0
-plantParam.cf = 50000.0
-plantParam.cr = 130000.0
-plantParam.lf = 2.5
-plantParam.lr = 1.5
-plantParam.Iz = 20600.0
-'''
 
+## Parameter settings
 vx = 5.0
 target_vx = 10.0
+
+ref_vx = 20.0
 lbd0 = [1, 1]
+plant_type = "vehicle"
+adaptive_gain = 100.0
+umax = 0.1
+umin = -0.1
+
+filename_prefix = plant_type + "_vx_05to10_gain_100"
+use_initial_guess = True
+
+## processing
+if plant_type == "vehicle":
+  plantParam.mass = 1727.0
+  plantParam.cf = 94000.0
+  plantParam.cr = 94000.0
+  plantParam.lf = 1.17
+  plantParam.lr = 1.42
+  plantParam.Iz = 2867.0
+
+elif plant_type == "truck":
+  plantParam.mass = 5500.0
+  plantParam.cf = 50000.0
+  plantParam.cr = 130000.0
+  plantParam.lf = 2.5
+  plantParam.lr = 1.5
+  plantParam.Iz = 20600.0
+else:
+  plant_type = "prius"
 
 ## Initial parameter
 plantInit = [road[0,0], road[0,1], road[0,2], vx, 0, 0, 0]
 
 ## Reference model
 modelParam = VehicleParam()
-A, B, C, D = linear_vehicle_model_fb(modelParam, 20.0, -2.0, -0.05)
+A, B, C, D = linear_vehicle_model_fb(modelParam, ref_vx, -2.0, -0.05)
 mss = ss(A, B, C, D)
 ref = LinearSystem(mss, 0, "ref")
 
@@ -127,7 +161,7 @@ Lp = -np.identity(phi_dim)*1
 lp = np.identity(phi_dim)*1
 phi = LinearSystem(ss(Lp, lp, np.identity(phi_dim), 0), 0, 'phi')
 
-adaptive_ctrl = AdaptiveControllerN2(ref, w1, w2, phi, 10.0)
+adaptive_ctrl = AdaptiveControllerN2(ref, w1, w2, phi, adaptive_gain, umin=umin, umax=umax)
 
 # set estimated param
 
@@ -144,7 +178,9 @@ print(tf(mss))
 estTheta = estimate_theta(pss, mss, 3, [1,1])
 print(estTheta)
 adaptive_ctrl.theta[-2] = -0.05
-adaptive_ctrl.theta = estTheta
+
+if (use_initial_guess):
+  adaptive_ctrl.theta = estTheta
 
 plant = Vehicle(plantParam, plantInit, road)
 
@@ -180,13 +216,14 @@ while (1):
     print("finish")
     break
 
+header = data_header(plantParam, modelParam)
+foldername = "with_init_param" if use_initial_guess else "no_init_param"
 
-np.savetxt("../data/output/with_init_param/adaptive_vehicle_vx_05to10_mvx_20_gain_10_theta.csv", np.array(thetas), delimiter=" ")
-np.savetxt("../data/output/with_init_param/adaptive_vehicle_vx_05to10_mvx_20_gain_10_u.csv", np.array(us), delimiter=" ")
-np.savetxt("../data/output/with_init_param/adaptive_vehicle_vx_05to10_mvx_20_gain_10_fx.csv", np.array(fxs), delimiter=" ")
-np.savetxt("../data/output/with_init_param/adaptive_vehicle_vx_05to10_mvx_20_gain_10.csv", np.array(pxs), delimiter=" ")
-np.savetxt("../data/output/with_init_param/adaptive_vehicle_vx_05to10_mvx_20_gain_10_yp.csv", yps, delimiter=" ")
-np.savetxt("../data/output/with_init_param/adaptive_vehicle_vx_05to10_mvx_20_gain_10_e.csv", es, delimiter=" ")
-#np.savetxt("../data/output/no_init_param/adaptive_track.csv", np.array(res["plant"]), delimiter=" ")
-#np.savetxt("../data/output/no_init_param/adaptive_track_yp.csv", np.array(res["yp"]), delimiter=" ")
-#np.savetxt("../data/output/no_init_param/adaptive_track_theta.csv", np.array(res["theta"]), delimiter=" ")
+print("## results")
+print("../data/output/" + foldername +"/" + filename_prefix + ".csv")
+np.savetxt("../data/output/" + foldername + "/" + filename_prefix + "_theta.csv", np.array(thetas), delimiter=" ", header=header)
+np.savetxt("../data/output/" + foldername + "/" + filename_prefix + "_u.csv", np.array(us), delimiter=" ", header=header)
+np.savetxt("../data/output/" + foldername + "/" + filename_prefix + "_fx.csv", np.array(fxs), delimiter=" ", header=header)
+np.savetxt("../data/output/" + foldername + "/" + filename_prefix + ".csv", np.array(pxs), delimiter=" ", header=header)
+np.savetxt("../data/output/" + foldername + "/" + filename_prefix + "_yp.csv", yps, delimiter=" ", header=header)
+np.savetxt("../data/output/" + foldername + "/" + filename_prefix + "_e.csv", es, delimiter=" ", header=header)
