@@ -45,6 +45,8 @@ def data_header(plant_param, reference_param):
      gain : {adaptive_gain}
      lbd0 : {lbd0}
      vx   : {vx}
+     umax : {umax} 
+     umin : {umin} 
     Reference Parameters
     {reference_param}
 
@@ -77,14 +79,14 @@ plantParam.Iz = 20600.0
 
 
 ## Parameter settings
-vx = 10.0
+vx = 20.0
 lbd0 = [1, 1]
-plant_type = "truck"
-adaptive_gain = 100.0
+plant_type = "vehicle"
+adaptive_gain = 1000.0
 umax = 0.1
 umin = -0.1
 
-filename_prefix = plant_type + "_vx_10_gain_100"
+filename_prefix = plant_type + "_vx_20_gain_1000"
 use_initial_guess = True
 
 ## processing
@@ -141,11 +143,12 @@ print(estTheta)
 adaptive_ctrl.theta[-2] = -0.05
 
 ### give initial parameters
-# adaptive_ctrl.theta = estTheta
+if (use_initial_guess):
+  adaptive_ctrl.theta = estTheta
 
 plant = Vehicle(plantParam, plantInit, road)
 
-res = sim(180, 0.01, plant, adaptive_ctrl)
+res = sim(90, 0.01, plant, adaptive_ctrl)
 
 
 ts = []
@@ -185,6 +188,3 @@ np.savetxt("../data/output/" + foldername +"/" + filename_prefix + "_theta.csv",
 np.savetxt("../data/output/" + foldername +"/" + filename_prefix + "_u.csv", np.array(us), delimiter=" ", header=header)
 np.savetxt("../data/output/" + foldername +"/" + filename_prefix + "_yp.csv", yps, delimiter=" ", header=header)
 np.savetxt("../data/output/" + foldername +"/" + filename_prefix + "_e.csv", es, delimiter=" ", header=header)
-#np.savetxt("../data/output/no_init_param/adaptive_track.csv", np.array(res["plant"]), delimiter=" ")
-#np.savetxt("../data/output/no_init_param/adaptive_track_yp.csv", np.array(res["yp"]), delimiter=" ")
-#np.savetxt("../data/output/no_init_param/adaptive_track_theta.csv", np.array(res["theta"]), delimiter=" ")
