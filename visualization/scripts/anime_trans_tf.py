@@ -12,7 +12,7 @@ from vehicle_dynamics import *
 from mrac.parameter_estimator import *
 from mrac.controller_designer import designed_state_space_eq
 
-data_path = "../../data/output/no_init_param/adaptive_vehicle_vx_05to10_mvx_20_gain_10_theta.csv"
+data_path = "../../data/output/with_init_param/adaptive_vehicle_vx_05to10_mvx_20_gain_10_theta.csv"
 params = pd.read_csv(data_path, header=None, delimiter=' ')
 
 intetval = 100
@@ -26,12 +26,14 @@ lbd0 = [1, 1]
 
 ## Plant Model
 plantParam = VehicleParam()
+'''
 plantParam.mass = 1727.0
 plantParam.cf = 94000.0
 plantParam.cr = 94000.0
 plantParam.lf = 1.17
 plantParam.lr = 1.42
 plantParam.Iz = 2867.0
+'''
 
 A, B, C, D = linear_vehicle_model(plantParam, vx)
 plant_sys = ss(A, B, C, D)
@@ -52,6 +54,8 @@ def draw_frame(i, thetas, mode):
   num, den = current_tf(plant_sys, theta, dim, lbd)
   est_tf = tf(num, den)
   plt.clf()
+  plt.title("t:{}".format(i) )
+
   if (mode == "pgmap"):
     #pzmap(est_tf)
     #pzmap(reference_sys)
@@ -77,11 +81,10 @@ def draw_frame(i, thetas, mode):
     plt.axvline(x=0, color="gray")
 
   elif (mode == "bode"):
-    bode(est_tf)
-    bode(reference_sys)
+    bode([est_tf, reference_sys], dB=False)
+
   else:
     pass
-  plt.title("t:{}".format(i) )
 
 fig = plt.figure() #figure objectを取得
 
