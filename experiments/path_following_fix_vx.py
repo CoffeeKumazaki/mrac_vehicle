@@ -79,15 +79,15 @@ plantParam.Iz = 20600.0
 
 
 ## Parameter settings
-vx = 20.0
+vx = 10.0
 lbd0 = [1, 1]
-plant_type = "truck"
+plant_type = "vehicle"
 adaptive_gain = 1000.0
 umax = 0.1
 umin = -0.1
 simT = 180
 
-filename_prefix = plant_type + "_vx_20_gain_1000"
+filename_prefix = plant_type + "_vx_10_gain_1000"
 use_initial_guess = True
 
 ## processing
