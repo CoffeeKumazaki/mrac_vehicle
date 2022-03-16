@@ -81,10 +81,11 @@ plantParam.Iz = 20600.0
 ## Parameter settings
 vx = 20.0
 lbd0 = [1, 1]
-plant_type = "vehicle"
+plant_type = "truck"
 adaptive_gain = 1000.0
 umax = 0.1
 umin = -0.1
+simT = 180
 
 filename_prefix = plant_type + "_vx_20_gain_1000"
 use_initial_guess = True
@@ -148,7 +149,7 @@ if (use_initial_guess):
 
 plant = Vehicle(plantParam, plantInit, road)
 
-res = sim(90, 0.01, plant, adaptive_ctrl)
+res = sim(simT, 0.01, plant, adaptive_ctrl)
 
 
 ts = []
