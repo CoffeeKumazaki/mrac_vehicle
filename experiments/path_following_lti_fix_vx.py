@@ -1,14 +1,14 @@
+from math import sin
 import tqdm
+import traceback
 import numpy as np
 from control.matlab import *
 from scipy.spatial import KDTree
-import cvxopt
-from cvxopt import matrix
 
 from linear_system import *
 from vehicle_params import *
 from vehicle_dynamics import *
-from vehicle import *
+from vehicle_LTI import *
 from mrac.controller import *
 from mrac.parameter_estimator import *
 from mrac.controller_designer import *
@@ -19,24 +19,23 @@ def sim(simT, dt, plant, controller):
 
   for t in tqdm.tqdm(Ts):
 
-    r = np.array([[0.0]])
+    r = reference_input(t)
 
     yp = plant.observe()
 
     u = adaptive_ctrl.calc_u(yp, r)
-    xp = plant.x
-    plant.update(dt, [-xp[5]*xp[4]*plant.vehicle_param.mass, u])
-    #plant.update(dt, u)
+    # xp = plant.x
+    # plant.update(dt, [-xp[5]*xp[4]*plant.vehicle_param.mass, u])
+    plant.update(dt, u)
 
     controller.update(dt, yp, r)
 
     yr = controller.ref.observe()
+    yp = plant.observe()
 
     e = yp[0]-yr[0]
     theta = controller.theta.T[0]
-    yield t, yp[0], yr[0], e, theta, u[0], r[0], plant.x
-
-def cbf_controller( current_yp, uref, umax, umin, th=1.8):
+    yield t, yp[0], yr[0], e, theta, u[0], r[0], plant.state.T[0]
 
 
 def data_header(plant_param, reference_param):
@@ -65,34 +64,23 @@ road = np.loadtxt("../data/path.txt", delimiter=" ", dtype=np.float32)
 tree = KDTree(road[:, :2])
 
 plantParam = VehicleParam()
-'''
-plantParam.mass = 1727.0
-plantParam.cf = 94000.0
-plantParam.cr = 94000.0
-plantParam.lf = 1.17
-plantParam.lr = 1.42
-plantParam.Iz = 2867.0
-
-plantParam.mass = 5500.0
-plantParam.cf = 50000.0
-plantParam.cr = 130000.0
-plantParam.lf = 2.5
-plantParam.lr = 1.5
-plantParam.Iz = 20600.0
-'''
-
 
 ## Parameter settings
-vx = 10.0
+vx = 10
 lbd0 = [1, 1]
 plant_type = "vehicle"
-adaptive_gain = 1000.0
-umax = 0.1
-umin = -0.1
+adaptive_gain = 0.01
+umax = 100000.0
+umin = -umax
 simT = 180
 
-filename_prefix = plant_type + "_vx_10_gain_1000"
-use_initial_guess = True
+def reference_input(t):
+  r = np.array([[float(0.01*sin(1.0*t))]])
+  return r
+  # return np.array([[0.0]])
+
+filename_prefix = plant_type + "_lti_vx_10_gain_001"
+use_initial_guess = False
 
 ## processing
 if plant_type == "vehicle":
@@ -115,7 +103,7 @@ else:
 
 
 ## Initial parameter
-plantInit = [road[0,0], road[0,1], road[0,2], vx, 0, 0, 0]
+plantInit = [0, 0, 0, 0]
 
 ## Reference model
 modelParam = VehicleParam()
@@ -151,7 +139,7 @@ adaptive_ctrl.theta[-2] = -0.05
 if (use_initial_guess):
   adaptive_ctrl.theta = estTheta
 
-plant = Vehicle(plantParam, plantInit, road)
+plant = LinearSystem(pss, plantInit)
 
 res = sim(simT, 0.01, plant, adaptive_ctrl)
 
@@ -177,8 +165,9 @@ while (1):
     thetas.append(theta)
     pxs.append(px)
   
-  except: 
-    print("finish")
+  except Exception as e:
+    print("finish", e)
+    print(traceback.format_exc())
     break
 
 
@@ -192,4 +181,6 @@ np.savetxt("../data/output/" + foldername +"/" + filename_prefix + ".csv", np.ar
 np.savetxt("../data/output/" + foldername +"/" + filename_prefix + "_theta.csv", np.array(thetas), delimiter=" ", header=header)
 np.savetxt("../data/output/" + foldername +"/" + filename_prefix + "_u.csv", np.array(us), delimiter=" ", header=header)
 np.savetxt("../data/output/" + foldername +"/" + filename_prefix + "_yp.csv", yps, delimiter=" ", header=header)
+np.savetxt("../data/output/" + foldername +"/" + filename_prefix + "_yr.csv", yrs, delimiter=" ", header=header)
 np.savetxt("../data/output/" + foldername +"/" + filename_prefix + "_e.csv", es, delimiter=" ", header=header)
+np.savetxt("../data/output/" + foldername +"/" + filename_prefix + "_r.csv", rs, delimiter=" ", header=header)

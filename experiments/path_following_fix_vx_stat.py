@@ -1,9 +1,8 @@
+from math import sin
 import tqdm
 import numpy as np
 from control.matlab import *
 from scipy.spatial import KDTree
-import cvxopt
-from cvxopt import matrix
 
 from linear_system import *
 from vehicle_params import *
@@ -19,7 +18,7 @@ def sim(simT, dt, plant, controller):
 
   for t in tqdm.tqdm(Ts):
 
-    r = np.array([[0.0]])
+    r = reference_input(t)
 
     yp = plant.observe()
 
@@ -35,8 +34,6 @@ def sim(simT, dt, plant, controller):
     e = yp[0]-yr[0]
     theta = controller.theta.T[0]
     yield t, yp[0], yr[0], e, theta, u[0], r[0], plant.x
-
-def cbf_controller( current_yp, uref, umax, umin, th=1.8):
 
 
 def data_header(plant_param, reference_param):
@@ -83,16 +80,21 @@ plantParam.Iz = 20600.0
 
 
 ## Parameter settings
-vx = 10.0
+vx = 10
 lbd0 = [1, 1]
 plant_type = "vehicle"
-adaptive_gain = 1000.0
+adaptive_gain = 100.0
 umax = 0.1
 umin = -0.1
 simT = 180
 
-filename_prefix = plant_type + "_vx_10_gain_1000"
-use_initial_guess = True
+def reference_input(t):
+  r = np.array([[float(0.01*sin(1.0*t))]])
+  return r
+  # return np.array([[0.0]])
+
+filename_prefix = plant_type + "_vx_10_gain_10_r_001sin1"
+use_initial_guess = False
 
 ## processing
 if plant_type == "vehicle":
@@ -177,8 +179,8 @@ while (1):
     thetas.append(theta)
     pxs.append(px)
   
-  except: 
-    print("finish")
+  except Exception as e:
+    print("finish", e)
     break
 
 
