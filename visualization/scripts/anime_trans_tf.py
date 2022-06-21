@@ -26,14 +26,12 @@ lbd0 = [1, 1]
 
 ## Plant Model
 plantParam = VehicleParam()
-'''
 plantParam.mass = 1727.0
 plantParam.cf = 94000.0
 plantParam.cr = 94000.0
 plantParam.lf = 1.17
 plantParam.lr = 1.42
 plantParam.Iz = 2867.0
-'''
 
 A, B, C, D = linear_vehicle_model(plantParam, vx)
 plant_sys = ss(A, B, C, D)
@@ -45,13 +43,13 @@ reference_sys = ss(A, B, C, D)
 
 n, L, _ = designed_state_space_eq(reference_sys, lbd0)
 lbd = np.hstack([[1.0], -L[0]])
-
 def draw_frame(i, thetas, mode):
 
   param = thetas[i]
-  dim = int((len(param)- 1 - 2) / 2.0)
+  dim = int((len(param)- 1) / 2.0)
   theta = list(param[1:])
-  num, den = current_tf(plant_sys, theta, dim, lbd)
+  # print(theta)
+  num, den = current_tf(plant_sys, param, dim, lbd)
   est_tf = tf(num, den)
   plt.clf()
   plt.title("t:{}".format(i) )
