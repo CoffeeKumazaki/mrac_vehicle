@@ -1,3 +1,4 @@
+from math import sin
 import tqdm
 import numpy as np
 from control.matlab import *
@@ -17,18 +18,19 @@ def sim(simT, dt, plant, controller):
 
   for t in tqdm.tqdm(Ts):
 
-    r = np.array([[0.0]])
+    r = reference_input(t)
 
     yp = plant.observe()
 
     u = adaptive_ctrl.calc_u(yp, r)
-    xp = plant.x
-    plant.update(dt, [-xp[5]*xp[4]*plant.vehicle_param.mass, u])
-    #plant.update(dt, u)
+    # xp = plant.x
+    # plant.update(dt, [-xp[5]*xp[4]*plant.vehicle_param.mass, u])
+    plant.update(dt, u)
 
     controller.update(dt, yp, r)
 
     yr = controller.ref.observe()
+    yp = plant.observe()
 
     e = yp[0]-yr[0]
     theta = controller.theta.T[0]
@@ -79,15 +81,20 @@ plantParam.Iz = 20600.0
 
 
 ## Parameter settings
-vx = 10.0
+vx = 10
 lbd0 = [1, 1]
 plant_type = "vehicle"
-adaptive_gain = 1000.0
+adaptive_gain = 10.0
 umax = 0.1
 umin = -0.1
 simT = 180
 
-filename_prefix = plant_type + "_vx_10_gain_1000"
+def reference_input(t):
+  r = np.array([[float(0.01*sin(1.0*t))]])
+  # return r
+  return np.array([[0.0]])
+
+filename_prefix = plant_type + "_vx_10_gain_10_lti"
 use_initial_guess = True
 
 ## processing
@@ -173,8 +180,8 @@ while (1):
     thetas.append(theta)
     pxs.append(px)
   
-  except: 
-    print("finish")
+  except Exception as e:
+    print("finish", e)
     break
 
 
@@ -188,4 +195,5 @@ np.savetxt("../data/output/" + foldername +"/" + filename_prefix + ".csv", np.ar
 np.savetxt("../data/output/" + foldername +"/" + filename_prefix + "_theta.csv", np.array(thetas), delimiter=" ", header=header)
 np.savetxt("../data/output/" + foldername +"/" + filename_prefix + "_u.csv", np.array(us), delimiter=" ", header=header)
 np.savetxt("../data/output/" + foldername +"/" + filename_prefix + "_yp.csv", yps, delimiter=" ", header=header)
+np.savetxt("../data/output/" + foldername +"/" + filename_prefix + "_yr.csv", yrs, delimiter=" ", header=header)
 np.savetxt("../data/output/" + foldername +"/" + filename_prefix + "_e.csv", es, delimiter=" ", header=header)
