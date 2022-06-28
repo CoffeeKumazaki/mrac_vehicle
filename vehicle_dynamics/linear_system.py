@@ -33,7 +33,7 @@ class LinearSystem:
   
   def update(self, dt, input):
 
-    resolution = 10
+    resolution = 100
     T = np.arange(0, dt, dt/resolution)
     U = np.repeat(input, resolution, axis=1).T
     [y, t, x] = lsim(self.sys, T=T, X0=self.state, U=U)
@@ -56,3 +56,33 @@ class LinearSystem:
     print("Current state: ")
     print(self.state)
     return ""
+
+if __name__ == '__main__':
+
+  import matplotlib.pyplot as plt
+  def plot_step(sys, file = None):
+    plt.cla()
+    file = file if file is not None else "step.png"
+    (y1a, T1a) = step(sys,T = np.arange(0, 5, 0.01))
+    plt.plot(T1a, y1a)
+    plt.savefig(file)
+  
+  import tqdm
+  pss = tf([1], [1, 3, 15])
+  linear = LinearSystem(pss, 0)
+
+
+  simT = 5.0
+  dt = 0.01
+  Ts = np.arange(0, simT, dt)
+  u = np.array([[1.0]])
+  x = []
+  plot_step(pss)
+  print(linear)
+  for t in tqdm.tqdm(Ts):
+    linear.update(dt, u)
+    x.append(linear.observe()[0])
+    # print(linear.state.T)
+
+  plt.plot(Ts, x, '.')
+  plt.savefig("ls.png")
