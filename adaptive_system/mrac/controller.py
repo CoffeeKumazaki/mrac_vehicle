@@ -9,7 +9,11 @@ class AdaptiveController:
     param_num = w1.sys.noutputs + w2.sys.noutputs + ref.sys.noutputs + 1
     self.theta = np.zeros((param_num, 1))
     self.theta[-1] = 1.0
-    self.gamma = gamma*np.identity(param_num)
+    if type(gamma) is np.ndarray:
+      self.gamma = np.diag(gamma)
+    elif type(gamma) is int or type(gamma) is float:
+      self.gamma = gamma*np.identity(param_num)
+
 
     self.umin = umin
     self.umax = umax
@@ -46,22 +50,29 @@ class AdaptiveController:
     print("System Variables:")
     print(self.w1)
     print(self.w2)
+    print("Adaptive parameter")
+    print(" gamma: ")
+    print(self.gamma)
+
     return ""    
 
 class AdaptiveControllerN2(AdaptiveController):
+  '''
+    Iannou and sun Table 6.2
+  '''
 
   def __init__(self, ref, w1, w2, phi, gamma, umin = None, umax = None):
 
     super(AdaptiveControllerN2, self).__init__(ref, w1, w2, gamma, umin, umax)
     self.phi = phi
 
-  def update(self, dt, yp, r):
+  def update(self, dt, yp, r, u):
 
-    u = self.calc_u(yp, r)
+    w = np.array([np.hstack([self.w1.state.T[0], self.w2.state.T[0], yp[0], r[0]])]).T
+
     self.ref.update(dt, r)
     self.w1.update(dt, np.repeat(u, self.w1.sys.ninputs, axis=0))
     self.w2.update(dt, np.repeat(yp, self.w2.sys.ninputs, axis=0))
-    w = np.array([np.hstack([self.w1.state.T[0], self.w2.state.T[0], yp[0], r[0]])]).T
     self.phi.update(dt, w)
 
     e = yp - self.ref.observe()
@@ -93,5 +104,8 @@ class AdaptiveControllerN2(AdaptiveController):
     print("System Variables:")
     print(self.w1)
     print(self.w2)
+    print("Adaptive parameter")
+    print(" gamma: ")
+    print(self.gamma)
     return ""
 
