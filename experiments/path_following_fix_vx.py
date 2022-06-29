@@ -1,5 +1,6 @@
 from math import sin
 import tqdm
+import traceback
 import numpy as np
 from control.matlab import *
 from scipy.spatial import KDTree
@@ -16,18 +17,19 @@ def sim(simT, dt, plant, controller):
   
   Ts = np.arange(0,simT, dt)
 
+  r = np.array([[0.0]])
+  u = np.array([[0.0]])
+
   for t in tqdm.tqdm(Ts):
 
-    r = reference_input(t)
-
     yp = plant.observe()
+    controller.update(dt, yp, r, u)
 
+    r = reference_input(t)
     u = adaptive_ctrl.calc_u(yp, r)
-    # xp = plant.x
-    # plant.update(dt, [-xp[5]*xp[4]*plant.vehicle_param.mass, u])
-    plant.update(dt, u)
-
-    controller.update(dt, yp, r)
+    xp = plant.x
+    plant.update(dt, [-xp[5]*xp[4]*plant.vehicle_param.mass, u])
+    # plant.update(dt, u)
 
     yr = controller.ref.observe()
     yp = plant.observe()
@@ -59,7 +61,7 @@ def data_header(plant_param, reference_param):
   '''
 
 
-road = np.loadtxt("../data/path.txt", delimiter=" ", dtype=np.float32)
+road = np.loadtxt("../data/tomei_sp2.txt", delimiter=" ", dtype=np.float32)
 tree = KDTree(road[:, :2])
 
 plantParam = VehicleParam()
@@ -81,12 +83,12 @@ plantParam.Iz = 20600.0
 
 
 ## Parameter settings
-vx = 10
+vx = 20
 lbd0 = [1, 1]
 plant_type = "vehicle"
-adaptive_gain = 10.0
-umax = 0.1
-umin = -0.1
+adaptive_gain = 100.0
+umax = 0.4
+umin = -0.4
 simT = 180
 
 def reference_input(t):
@@ -94,8 +96,8 @@ def reference_input(t):
   # return r
   return np.array([[0.0]])
 
-filename_prefix = plant_type + "_vx_10_gain_10_lti"
-use_initial_guess = True
+filename_prefix = plant_type + "_vx_20_gain_100_tomei_u04"
+use_initial_guess = False
 
 ## processing
 if plant_type == "vehicle":
@@ -149,6 +151,7 @@ print(tf(mss))
 estTheta = estimate_theta(pss, mss, sv_dim, lbd0)
 print(estTheta)
 adaptive_ctrl.theta[-2] = -0.05
+adaptive_ctrl.theta[-1] = 1.0
 
 ### give initial parameters
 if (use_initial_guess):
@@ -182,6 +185,7 @@ while (1):
   
   except Exception as e:
     print("finish", e)
+    print(traceback.format_exc())
     break
 
 

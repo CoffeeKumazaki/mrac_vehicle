@@ -21,14 +21,15 @@ def sim(simT, dt, plant, controller):
 
     r = reference_input(t)
 
+    yr = controller.ref.observe()
     yp = plant.observe()
 
-    u = adaptive_ctrl.calc_u(yp, r)
+    u = [(yp[0]-yr[0])*-0.005]
+
     # xp = plant.x
     # plant.update(dt, [-xp[5]*xp[4]*plant.vehicle_param.mass, u])
     plant.update(dt, u)
-
-    controller.update(dt, yp, r, u)
+    controller.ref.update(dt, r)
 
     yr = controller.ref.observe()
     yp = plant.observe()
@@ -69,17 +70,17 @@ plantParam = VehicleParam()
 vx = 10
 lbd0 = [1, 1]
 plant_type = "vehicle"
-adaptive_gain = 100
+adaptive_gain = 10
 umax = 100000.0
 umin = -umax
 simT = 180
 
 def reference_input(t):
-  r = np.array([[float(0.01*sin(1.0*t))]])
+  r = np.array([[float(0.01*sin(0.1*t))]])
   return r
   # return np.array([[0.0]])
 
-filename_prefix = plant_type + "_lti_vx_10_gain_100"
+filename_prefix = plant_type + "_lti_vx_10_pid_gain_10"
 use_initial_guess = False
 
 ## processing
@@ -134,7 +135,6 @@ print(tf(mss))
 estTheta = estimate_theta(pss, mss, sv_dim, lbd0)
 print(estTheta)
 adaptive_ctrl.theta[-2] = -0.05
-adaptive_ctrl.theta[-1] = 1.0
 
 ### give initial parameters
 if (use_initial_guess):

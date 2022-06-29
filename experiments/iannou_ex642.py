@@ -8,7 +8,7 @@ from scipy.spatial import KDTree
 from linear_system import *
 from vehicle_params import *
 from vehicle_dynamics import *
-from vehicle_LTI import *
+from vehicle import *
 from mrac.controller import *
 from mrac.parameter_estimator import *
 from mrac.controller_designer import *
@@ -17,18 +17,19 @@ def sim(simT, dt, plant, controller):
   
   Ts = np.arange(0,simT, dt)
 
+  r = np.array([[0.0]])
+  u = np.array([[0.0]])
+
   for t in tqdm.tqdm(Ts):
 
-    r = reference_input(t)
-
     yp = plant.observe()
+    controller.update(dt, yp, r, u)
 
+    r = reference_input(t)
     u = adaptive_ctrl.calc_u(yp, r)
     # xp = plant.x
     # plant.update(dt, [-xp[5]*xp[4]*plant.vehicle_param.mass, u])
     plant.update(dt, u)
-
-    controller.update(dt, yp, r, u)
 
     yr = controller.ref.observe()
     yp = plant.observe()
@@ -60,55 +61,24 @@ def data_header(plant_param, reference_param):
   '''
 
 
-road = np.loadtxt("../data/path.txt", delimiter=" ", dtype=np.float32)
-tree = KDTree(road[:, :2])
-
-plantParam = VehicleParam()
-
-## Parameter settings
-vx = 10
-lbd0 = [1, 1]
-plant_type = "vehicle"
-adaptive_gain = 100
-umax = 100000.0
-umin = -umax
+lbd0 = [1, 2]
+plant_type = "example642"
+adaptive_gain = np.array([2, 4, 0.8, 1]) * 50
+umax = None
+umin = None
 simT = 180
+use_initial_guess = False
 
 def reference_input(t):
-  r = np.array([[float(0.01*sin(1.0*t))]])
+  r = np.array([[float(3.0*sin(4.9*t) + 0.5*sin(0.7*t))]])
   return r
   # return np.array([[0.0]])
 
-filename_prefix = plant_type + "_lti_vx_10_gain_100"
-use_initial_guess = False
-
-## processing
-if plant_type == "vehicle":
-  plantParam.mass = 1727.0
-  plantParam.cf = 94000.0
-  plantParam.cr = 94000.0
-  plantParam.lf = 1.17
-  plantParam.lr = 1.42
-  plantParam.Iz = 2867.0
-
-elif plant_type == "truck":
-  plantParam.mass = 5500.0
-  plantParam.cf = 50000.0
-  plantParam.cr = 130000.0
-  plantParam.lf = 2.5
-  plantParam.lr = 1.5
-  plantParam.Iz = 20600.0
-else:
-  plant_type = "prius"
-
-
-## Initial parameter
-plantInit = [0, 0, 0, 0]
+filename_prefix = plant_type + "_gain_1"
 
 ## Reference model
 modelParam = VehicleParam()
-A, B, C, D = linear_vehicle_model_fb(modelParam, vx, -2.0, -0.05)
-mss = ss(A, B, C, D)
+mss = tf([5], [1, 5, 25])
 ref = LinearSystem(mss, 0, "ref")
 
 sv_dim, L, l = designed_state_space_eq(mss, lbd0)
@@ -125,22 +95,26 @@ adaptive_ctrl = AdaptiveControllerN2(ref, w1, w2, phi, adaptive_gain, umin=umin,
 # set estimated param
 
 ## plant LTI model
-A, B, C, D = linear_vehicle_model(plantParam, vx)
-pss = ss(A, B, C, D)
+pss = tf([1], [1, 3, -15])
 
 print(tf(pss))
 print(tf(mss))
+print(adaptive_ctrl)
 
 estTheta = estimate_theta(pss, mss, sv_dim, lbd0)
 print(estTheta)
-adaptive_ctrl.theta[-2] = -0.05
-adaptive_ctrl.theta[-1] = 1.0
 
 ### give initial parameters
 if (use_initial_guess):
   adaptive_ctrl.theta = estTheta
 
-plant = LinearSystem(pss, plantInit)
+# adaptive_ctrl.theta[0] = 0
+# adaptive_ctrl.theta[1] = -20
+# adaptive_ctrl.theta[2] = -30
+# adaptive_ctrl.theta[3] = 2
+
+
+plant = LinearSystem(pss, 0)
 
 res = sim(simT, 0.01, plant, adaptive_ctrl)
 
@@ -172,16 +146,13 @@ while (1):
     break
 
 
-header = data_header(plantParam, modelParam)
-
 foldername = "with_init_param" if use_initial_guess else "no_init_param"
 
 print("## results")
 print("../data/output/" + foldername +"/" + filename_prefix + ".csv")
-np.savetxt("../data/output/" + foldername +"/" + filename_prefix + ".csv", np.array(pxs), delimiter=" ", header=header)
-np.savetxt("../data/output/" + foldername +"/" + filename_prefix + "_theta.csv", np.array(thetas), delimiter=" ", header=header)
-np.savetxt("../data/output/" + foldername +"/" + filename_prefix + "_u.csv", np.array(us), delimiter=" ", header=header)
-np.savetxt("../data/output/" + foldername +"/" + filename_prefix + "_yp.csv", yps, delimiter=" ", header=header)
-np.savetxt("../data/output/" + foldername +"/" + filename_prefix + "_yr.csv", yrs, delimiter=" ", header=header)
-np.savetxt("../data/output/" + foldername +"/" + filename_prefix + "_e.csv", es, delimiter=" ", header=header)
-np.savetxt("../data/output/" + foldername +"/" + filename_prefix + "_r.csv", rs, delimiter=" ", header=header)
+np.savetxt("../data/output/" + foldername +"/" + filename_prefix + ".csv", np.array(pxs), delimiter=" ")
+np.savetxt("../data/output/" + foldername +"/" + filename_prefix + "_theta.csv", np.array(thetas), delimiter=" ")
+np.savetxt("../data/output/" + foldername +"/" + filename_prefix + "_u.csv", np.array(us), delimiter=" ")
+np.savetxt("../data/output/" + foldername +"/" + filename_prefix + "_yp.csv", yps, delimiter=" ")
+np.savetxt("../data/output/" + foldername +"/" + filename_prefix + "_yr.csv", yrs, delimiter=" ")
+np.savetxt("../data/output/" + foldername +"/" + filename_prefix + "_e.csv", es, delimiter=" ")
