@@ -1,4 +1,5 @@
 import numpy as np
+import copy
 
 class AdaptiveController:
   
@@ -109,3 +110,62 @@ class AdaptiveControllerN2(AdaptiveController):
     print(self.gamma)
     return ""
 
+
+class ConstraintAdaptiveControllerN2(AdaptiveController):
+
+  def __init__(self, ref, w1, w2, gamma, umin, umax):
+
+    super(ConstraintAdaptiveControllerN2, self).__init__(ref, w1, w2, gamma, umin, umax)
+    phi_dim = w1.sys.noutputs + w2.sys.noutputs + ref.sys.ninputs + ref.sys.noutputs
+
+    self.phi = []
+    for i in range(phi_dim):
+      self.phi.append(copy.deepcopy(ref))
+    
+    self.theta_phi = copy.deepcopy(ref)
+    self.k1 = 1.0
+    self.e2 = 0.0
+
+  def update(self, dt, yp, r, u):
+
+    phi = []
+    for p in self.phi:
+      phi.append(p.observe()[0])
+    phi = np.array(phi)
+
+    w = np.array([np.hstack([self.w1.state.T[0], self.w2.state.T[0], yp[0], r[0]])]).T
+
+    e2 = self.theta.T.dot(phi) - self.theta_phi.observe()
+    e = yp - self.ref.observe()
+    e1 = e + e2*self.k1
+
+    self.ref.update(dt, r)
+    self.w1.update(dt, np.repeat(u, self.w1.sys.ninputs, axis=0))
+    self.w2.update(dt, np.repeat(yp, self.w2.sys.ninputs, axis=0))
+    self.theta_phi.update(dt, self.theta.T.dot(w))
+    for idx, wb in enumerate(w):
+      self.phi[idx].update(dt, np.array([wb]))
+
+    ## update params
+    self.theta = self.theta - e1*self.gamma.dot(phi)/(1 + phi.T.dot(phi))*dt
+    self.k1 = self.k1 - e1*e2/(1 + phi.T.dot(phi))*dt
+    self.e2 = e2
+
+  def calc_u(self, yp, r):
+
+    w = np.array([np.hstack([self.w1.state.T[0], self.w2.state.T[0], yp[0], r[0]])]).T
+
+    '''
+    phi = []
+    for p in self.phi:
+      phi.append(p.observe()[0])
+    phi = np.array(phi)
+
+    e2 = self.theta.T.dot(phi) - self.theta_phi.observe()
+    e = yp - self.ref.observe()
+    e1 = e + e2*self.k1
+    '''
+
+    u = self.theta.T.dot(w) #- e1*phi.T.dot(phi)/(1 + phi.T.dot(phi))
+
+    return np.array(u)
