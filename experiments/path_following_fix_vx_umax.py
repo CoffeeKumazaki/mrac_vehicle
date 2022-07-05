@@ -70,7 +70,7 @@ plantParam = VehicleParam()
 vx = 20
 lbd0 = [1, 1]
 plant_type = "vehicle"
-adaptive_gain = 0.0001
+adaptive_gain = 0.01
 umax = 0.4
 umin = -umax
 simT = 100
@@ -78,10 +78,10 @@ dt = 0.01
 
 def reference_input(t):
   r = np.array([[float(0.01*sin(0.1*t))]])
-  return r
-  # return np.array([[0.0]])
+  # return r
+  return np.array([[0.0]])
 
-filename_prefix = plant_type + "_vx_20_gain_00001_tomei_001sin01_new"
+filename_prefix = plant_type + "_vx_20_gain_001_tomei_new"
 use_initial_guess = False
 
 ## processing
