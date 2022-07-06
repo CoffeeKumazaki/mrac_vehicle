@@ -127,6 +127,7 @@ class ConstraintAdaptiveControllerN2(AdaptiveController):
     self.xi = copy.deepcopy(ref)
     self.kd = np.array([0.0])
     self.du = np.array([[0.0]])
+    self.e1 = 0.0
     self.e2 = 0.0
 
   def update(self, dt, yp, r, u):
@@ -137,10 +138,11 @@ class ConstraintAdaptiveControllerN2(AdaptiveController):
     phi = np.array(phi)
 
     w = np.array([np.hstack([self.w1.state.T[0], self.w2.state.T[0], yp[0], r[0]])]).T
+    xi = self.xi.observe()
 
     e2 = self.theta.T.dot(phi) - self.theta_phi.observe()
     e = yp - self.ref.observe()
-    e1 = e + self.kd.dot(self.xi.observe()) + e2*self.k1
+    e1 = e - self.kd.dot(xi) + e2*self.k1
 
     self.ref.update(dt, r)
     self.w1.update(dt, np.repeat(u, self.w1.sys.ninputs, axis=0))
@@ -153,8 +155,9 @@ class ConstraintAdaptiveControllerN2(AdaptiveController):
     ## update params
     self.theta = self.theta - e1*self.gamma.dot(phi)/(1 + phi.T.dot(phi))*dt
     self.k1 = self.k1 - e1*e2/(1 + phi.T.dot(phi))*dt
-    self.kd = self.kd + e1*self.xi.observe()/(1 + phi.T.dot(phi))*dt
+    self.kd = self.kd + e1*xi/(1 + phi.T.dot(phi))*dt
     self.e2 = e2
+    self.e1 = e1
 
   def calc_u(self, yp, r):
 
