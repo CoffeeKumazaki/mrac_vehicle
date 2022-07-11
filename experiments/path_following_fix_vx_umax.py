@@ -36,7 +36,7 @@ def sim(simT, dt, plant, controller):
 
     e = yp[0]-yr[0]
     theta = controller.theta.T[0]
-    yield t, yp[0], yr[0], e, theta, u[0], r[0], plant.x, controller.k1[0], controller.e2[0]
+    yield t, yp[0], yr[0], e, theta, u[0], r[0], plant.x, controller.k1[0], controller.e1[0], controller.e2[0]
 
 
 def data_header(plant_param, reference_param):
@@ -70,18 +70,18 @@ plantParam = VehicleParam()
 vx = 20
 lbd0 = [1, 1]
 plant_type = "vehicle"
-adaptive_gain = 0.01
+adaptive_gain = 0.1
 umax = 0.4
 umin = -umax
-simT = 100
+simT = 180
 dt = 0.01
 
 def reference_input(t):
-  r = np.array([[float(0.01*sin(0.1*t))]])
+  # r = np.array([[float(0.01*sin(0.1*t))]])
   # return r
   return np.array([[0.0]])
 
-filename_prefix = plant_type + "_vx_20_gain_001_tomei_new"
+filename_prefix = plant_type + "_vx_" + str(int(vx)) + "_gain_" + str("01") + "_tomei"
 use_initial_guess = False
 
 ## processing
@@ -131,12 +131,13 @@ print(tf(mss))
 
 estTheta = estimate_theta(pss, mss, sv_dim, lbd0)
 print(estTheta)
-adaptive_ctrl.theta[-2] = -0.05
+adaptive_ctrl.theta[-2] = -30.0
 adaptive_ctrl.theta[-1] = 1.0
 
 ### give initial parameters
 if (use_initial_guess):
   adaptive_ctrl.theta = estTheta
+# adaptive_ctrl.theta = estTheta*1.1
 
 plant = Vehicle(plantParam, plantInit, road)
 
@@ -152,10 +153,11 @@ rs = []
 thetas = []
 pxs = []
 k1s = []
+e1s = []
 e2s = []
 while (1):
   try:
-    t, yp, yr, e, theta, u, r, px, k1, e2 = next(res)
+    t, yp, yr, e, theta, u, r, px, k1, e1, e2 = next(res)
 
     ts.append(t)
     yps.append(yp)
@@ -166,6 +168,7 @@ while (1):
     thetas.append(theta)
     pxs.append(px)
     k1s.append(k1)
+    e1s.append(e1)
     e2s.append(e2)
   
   except Exception as e:
@@ -185,6 +188,8 @@ np.savetxt("../data/output/" + foldername +"/" + filename_prefix + "_theta.csv",
 np.savetxt("../data/output/" + foldername +"/" + filename_prefix + "_u.csv", np.array(us), delimiter=" ", header=header)
 np.savetxt("../data/output/" + foldername +"/" + filename_prefix + "_yp.csv", yps, delimiter=" ", header=header)
 np.savetxt("../data/output/" + foldername +"/" + filename_prefix + "_yr.csv", yrs, delimiter=" ", header=header)
+np.savetxt("../data/output/" + foldername +"/" + filename_prefix + "_r.csv", rs, delimiter=" ", header=header)
 np.savetxt("../data/output/" + foldername +"/" + filename_prefix + "_e.csv", es, delimiter=" ", header=header)
 np.savetxt("../data/output/" + foldername +"/" + filename_prefix + "_k1.csv", np.array(k1s), delimiter=" ", header=header)
+np.savetxt("../data/output/" + foldername +"/" + filename_prefix + "_e1.csv", np.array(e1s), delimiter=" ", header=header)
 np.savetxt("../data/output/" + foldername +"/" + filename_prefix + "_e2.csv", np.array(e2s), delimiter=" ", header=header)
