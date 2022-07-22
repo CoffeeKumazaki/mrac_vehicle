@@ -60,7 +60,7 @@ def data_header(plant_param, reference_param):
   '''
 
 
-road = np.loadtxt("../data/path.txt", delimiter=" ", dtype=np.float32)
+road = np.loadtxt("../data/straight.txt", delimiter=" ", dtype=np.float32)
 tree = KDTree(road[:, :2])
 
 plantParam = VehicleParam()
@@ -69,17 +69,17 @@ plantParam = VehicleParam()
 vx = 10
 lbd0 = [1, 1]
 plant_type = "vehicle"
-adaptive_gain = 100
+adaptive_gain = 1.0
 umax = 100000.0
 umin = -umax
 simT = 180
 
 def reference_input(t):
-  r = np.array([[float(0.01*sin(1.0*t))]])
+  r = np.array([[float(0.01*sin(0.1*t))]])
   return r
   # return np.array([[0.0]])
 
-filename_prefix = plant_type + "_lti_vx_10_gain_100"
+filename_prefix = plant_type + "_lti_vx_10_gain_1_straight"
 use_initial_guess = False
 
 ## processing

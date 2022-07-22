@@ -8,7 +8,7 @@ from scipy.spatial import KDTree
 from linear_system import *
 from vehicle_params import *
 from vehicle_dynamics import *
-from vehicle_LTI import *
+from vehicle import *
 from mrac.controller import *
 from mrac.parameter_estimator import *
 from mrac.controller_designer import *
@@ -17,18 +17,20 @@ def sim(simT, dt, plant, controller):
   
   Ts = np.arange(0,simT, dt)
 
-  for t in tqdm.tqdm(Ts):
+  r = np.array([[0.0]])
+  u = np.array([[0.0]])
 
-    r = reference_input(t)
+  for t in tqdm.tqdm(Ts):
 
     yr = controller.ref.observe()
     yp = plant.observe()
 
-    u = [(yp[0]-yr[0])*-0.005]
+    r = reference_input(t)
+    u = [yp[0]*-0.005]
+    u = np.array(u)
 
-    # xp = plant.x
-    # plant.update(dt, [-xp[5]*xp[4]*plant.vehicle_param.mass, u])
-    plant.update(dt, u)
+    xp = plant.x
+    plant.update(dt, [-xp[5]*xp[4]*plant.vehicle_param.mass, u])
     controller.ref.update(dt, r)
 
     yr = controller.ref.observe()
@@ -36,7 +38,7 @@ def sim(simT, dt, plant, controller):
 
     e = yp[0]-yr[0]
     theta = controller.theta.T[0]
-    yield t, yp[0], yr[0], e, theta, u[0], r[0], plant.state.T[0]
+    yield t, yp[0], yr[0], e, theta, u[0], r[0], plant.x
 
 
 def data_header(plant_param, reference_param):
@@ -70,17 +72,18 @@ plantParam = VehicleParam()
 vx = 20
 lbd0 = [1, 1]
 plant_type = "vehicle"
-adaptive_gain = 0
-umax = 100000.0
+adaptive_gain = 0.1
+umax = 0.4
 umin = -umax
 simT = 180
+dt = 0.01
 
 def reference_input(t):
-  r = np.array([[float(0.01*sin(0.1*t))]])
-  return r
-  # return np.array([[0.0]])
+  r = np.array([[float(0.01*sin(1*t))]])
+  # return r
+  return np.array([[0.0]])
 
-filename_prefix = plant_type + "_lti_vx_20_pid_gain_0"
+filename_prefix = plant_type + "_vx_" + str(int(vx)) + "_gain_" + str("01") + "_tomei_u04_init_pid0005"
 use_initial_guess = False
 
 ## processing
@@ -99,12 +102,13 @@ elif plant_type == "truck":
   plantParam.lf = 2.5
   plantParam.lr = 1.5
   plantParam.Iz = 20600.0
+  
 else:
   plant_type = "prius"
 
 
 ## Initial parameter
-plantInit = [0, 0, 0, 0]
+plantInit = [road[0,0], road[0,1], road[0,2], vx, 0, 0, 0]
 
 ## Reference model
 modelParam = VehicleParam()
@@ -116,12 +120,7 @@ sv_dim, L, l = designed_state_space_eq(mss, lbd0)
 w1 = LinearSystem(ss(L, l, np.identity(sv_dim), 0), 0, "w1")
 w2 = LinearSystem(ss(L, l, np.identity(sv_dim), 0), 0, "w2")
 
-phi_dim = sv_dim*2 + ref.sys.ninputs + ref.sys.noutputs
-Lp = -np.identity(phi_dim)*1
-lp = np.identity(phi_dim)*1
-phi = LinearSystem(ss(Lp, lp, np.identity(phi_dim), 0), 0, 'phi')
-
-adaptive_ctrl = AdaptiveControllerN2(ref, w1, w2, phi, adaptive_gain, umin=umin, umax=umax)
+adaptive_ctrl = ConstraintAdaptiveControllerN2(ref, w1, w2, adaptive_gain, umin=umin, umax=umax)
 
 # set estimated param
 
@@ -134,15 +133,25 @@ print(tf(mss))
 
 estTheta = estimate_theta(pss, mss, sv_dim, lbd0)
 print(estTheta)
-adaptive_ctrl.theta[-2] = -0.05
+header = data_header(plantParam, modelParam)
 
 ### give initial parameters
 if (use_initial_guess):
-  adaptive_ctrl.theta = estTheta
+  estTheta = estimate_theta(pss, mss, sv_dim, lbd0)
+else:
+  tempParam = VehicleParam()
+  A, B, C, D = linear_vehicle_model(tempParam, vx)
+  tss = ss(A, B, C, D)
 
-plant = LinearSystem(pss, plantInit)
+  estTheta = estimate_theta(tss, mss, sv_dim, lbd0)
+  print(estTheta)
 
-res = sim(simT, 0.01, plant, adaptive_ctrl)
+adaptive_ctrl.theta = estTheta
+# adaptive_ctrl.theta = estTheta*1.1
+
+plant = Vehicle(plantParam, plantInit, road)
+
+res = sim(simT, dt, plant, adaptive_ctrl)
 
 
 ts = []
@@ -171,9 +180,6 @@ while (1):
     print(traceback.format_exc())
     break
 
-
-header = data_header(plantParam, modelParam)
-
 foldername = "with_init_param" if use_initial_guess else "no_init_param"
 
 print("## results")
@@ -183,5 +189,5 @@ np.savetxt("../data/output/" + foldername +"/" + filename_prefix + "_theta.csv",
 np.savetxt("../data/output/" + foldername +"/" + filename_prefix + "_u.csv", np.array(us), delimiter=" ", header=header)
 np.savetxt("../data/output/" + foldername +"/" + filename_prefix + "_yp.csv", yps, delimiter=" ", header=header)
 np.savetxt("../data/output/" + foldername +"/" + filename_prefix + "_yr.csv", yrs, delimiter=" ", header=header)
-np.savetxt("../data/output/" + foldername +"/" + filename_prefix + "_e.csv", es, delimiter=" ", header=header)
 np.savetxt("../data/output/" + foldername +"/" + filename_prefix + "_r.csv", rs, delimiter=" ", header=header)
+np.savetxt("../data/output/" + foldername +"/" + filename_prefix + "_e.csv", es, delimiter=" ", header=header)

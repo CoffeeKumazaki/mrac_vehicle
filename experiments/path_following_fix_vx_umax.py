@@ -61,7 +61,7 @@ def data_header(plant_param, reference_param):
   '''
 
 
-road = np.loadtxt("../data/tomei_sp2.txt", delimiter=" ", dtype=np.float32)
+road = np.loadtxt("../data/straight.txt", delimiter=" ", dtype=np.float32)
 tree = KDTree(road[:, :2])
 
 plantParam = VehicleParam()
@@ -70,19 +70,19 @@ plantParam = VehicleParam()
 vx = 20
 lbd0 = [1, 1]
 plant_type = "vehicle"
-adaptive_gain = 0.1
+adaptive_gain = 100.0
 umax = 0.4
 umin = -umax
 simT = 180
 dt = 0.01
 
 def reference_input(t):
-  # r = np.array([[float(0.01*sin(0.1*t))]])
-  # return r
-  return np.array([[0.0]])
+  r = np.array([[float(0.01*sin(1.0*t))]])
+  return r
+  # return np.array([[0.0]])
 
-filename_prefix = plant_type + "_vx_" + str(int(vx)) + "_gain_" + str("01") + "_tomei"
-use_initial_guess = False
+filename_prefix = plant_type + "_vx_" + str(int(vx)) + "_gain_" + str("100") + "_straight_u04_001sin1_mass12"
+use_initial_guess = True
 
 ## processing
 if plant_type == "vehicle":
@@ -131,14 +131,24 @@ print(tf(mss))
 
 estTheta = estimate_theta(pss, mss, sv_dim, lbd0)
 print(estTheta)
-adaptive_ctrl.theta[-2] = -30.0
-adaptive_ctrl.theta[-1] = 1.0
+header = data_header(plantParam, modelParam)
 
 ### give initial parameters
 if (use_initial_guess):
-  adaptive_ctrl.theta = estTheta
+  estTheta = estimate_theta(pss, mss, sv_dim, lbd0)
+else:
+  tempParam = VehicleParam()
+  A, B, C, D = linear_vehicle_model(tempParam, vx)
+  tss = ss(A, B, C, D)
+
+  estTheta = estimate_theta(tss, mss, sv_dim, lbd0)
+  print(estTheta)
+
+adaptive_ctrl.theta = estTheta
+
 # adaptive_ctrl.theta = estTheta*1.1
 
+plantParam.mass = plantParam.mass*1.2
 plant = Vehicle(plantParam, plantInit, road)
 
 res = sim(simT, dt, plant, adaptive_ctrl)
@@ -175,9 +185,6 @@ while (1):
     print("finish", e)
     print(traceback.format_exc())
     break
-
-
-header = data_header(plantParam, modelParam)
 
 foldername = "with_init_param" if use_initial_guess else "no_init_param"
 

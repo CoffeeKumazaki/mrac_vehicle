@@ -44,8 +44,8 @@ def solve_opt_parameters(kp: float, zp: list, rp: list, km: float, zm: list, rm:
     eqs.append(eqt)
 
 
-  print("number of equations ", len(rhs.all_coeffs()))
-  print("number of parameters", len(t1+t2+t3))
+  # print("number of equations ", len(rhs.all_coeffs()))
+  # print("number of parameters", len(t1+t2+t3))
 
   sol = solve(eqs, t1 + t2 + t3)
 
@@ -60,7 +60,7 @@ def estimate_theta(plant_tf, reference_tf, omega_dim, lambda0_tf_coeffs):
   km, zm, rm = get_tf_params(reference_tf)
   theta = solve_opt_parameters(kp, zp, rp, km, zm, rm, omega_dim, lambda0_tf_coeffs)
 
-  y_dim = reference_tf.noutputs;
+  y_dim = reference_tf.noutputs
   etheta = np.zeros((1+ y_dim + 2*omega_dim, 1))
 
   id = 0
