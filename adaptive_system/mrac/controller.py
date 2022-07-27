@@ -1,4 +1,5 @@
 import numpy as np
+from math import *
 import copy
 
 class AdaptiveController:
@@ -110,10 +111,26 @@ class AdaptiveControllerN2(AdaptiveController):
     print(self.gamma)
     return ""
 
-
 class ConstraintAdaptiveControllerN2(AdaptiveController):
 
-  def __init__(self, ref, w1, w2, gamma, umin, umax):
+  def __init__(self, ref, w1, w2, gamma, umin, umax, robust="nothing", rbParam = None):
+    # robustness
+    #  - "nothing"  : nothing
+    #  - "deadzone" : dead zone, rbParam == limitation of disturbance
+    if robust == "deadzone" and rbParam is None:
+      rbParam = 1.0
+    #  - "thetamax" : bounded theta, rbParam == limitaion of theta
+    if robust == "thetamax" and rbParam is None:
+      rbParam = 5000.0
+    #  - "s-mod"    : sigma-modification, rbParam == sigma
+    if robust == "s-mod" and rbParam is None:
+      rbParam = 1.0
+    #  - "e-mod"    : error modification, rbParam == factor
+    if robust == "e-mod" and rbParam is None:
+      rbParam = 1.0
+
+    self.robust = robust
+    self.rbParam = rbParam
 
     super(ConstraintAdaptiveControllerN2, self).__init__(ref, w1, w2, gamma, umin, umax)
     phi_dim = w1.sys.noutputs + w2.sys.noutputs + ref.sys.ninputs + ref.sys.noutputs
@@ -153,9 +170,24 @@ class ConstraintAdaptiveControllerN2(AdaptiveController):
       self.phi[idx].update(dt, np.array([wb]))
 
     ## update params
-    self.theta = self.theta - e1*self.gamma.dot(phi)/(1 + phi.T.dot(phi))*dt
-    self.k1 = self.k1 - e1*e2/(1 + phi.T.dot(phi))*dt
-    self.kd = self.kd + e1*xi/(1 + phi.T.dot(phi))*dt
+    dthetadt = - e1*self.gamma.dot(phi)/(1 + phi.T.dot(phi))
+    dk1dt = - e1*e2/(1 + phi.T.dot(phi))
+    dkddt = e1*xi/(1 + phi.T.dot(phi))
+    if self.robust == "deadzone":
+      if (abs(e1) < self.rbParam) :
+        dthetadt = np.zeros_like(dthetadt)
+        dkddt = np.zeros_like(dkddt)
+        dk1dt = np.zeros_like(dk1dt)
+    elif self.robust == "s-mod":
+      dthetadt -= self.rbParam*self.theta/(1 + phi.T.dot(phi))
+    elif self.robust == "e-mod":
+      dthetadt -= self.rbParam*abs(e1)*self.theta/(1 + phi.T.dot(phi))
+    else:
+      pass
+
+    self.theta = self.theta + dthetadt*dt
+    self.k1 = self.k1 + dk1dt*dt
+    self.kd = self.kd + dkddt*dt
     self.e2 = e2
     self.e1 = e1
 

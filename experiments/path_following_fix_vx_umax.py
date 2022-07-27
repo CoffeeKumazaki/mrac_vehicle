@@ -1,4 +1,4 @@
-from math import sin
+from math import *
 import tqdm
 import traceback
 import numpy as np
@@ -23,7 +23,10 @@ def sim(simT, dt, plant, controller):
   for t in tqdm.tqdm(Ts):
 
     yp = plant.observe()
+    ypt = plant.observe(False)
     controller.update(dt, yp, r, u)
+    yr = controller.ref.observe()
+    e = yp[0]-yr[0]
 
     r = reference_input(t)
     u = adaptive_ctrl.calc_u(yp, r)
@@ -31,12 +34,10 @@ def sim(simT, dt, plant, controller):
     plant.update(dt, [-xp[5]*xp[4]*plant.vehicle_param.mass, u])
     # plant.update(dt, u)
 
-    yr = controller.ref.observe()
-    yp = plant.observe()
+    # yp = plant.observe(False)
 
-    e = yp[0]-yr[0]
     theta = controller.theta.T[0]
-    yield t, yp[0], yr[0], e, theta, u[0], r[0], plant.x, controller.k1[0], controller.e1[0], controller.e2[0]
+    yield t, yp[0], yr[0], e, theta, u[0], r[0], plant.x, controller.k1[0], controller.e1[0], controller.e2[0], ypt[0]
 
 
 def data_header(plant_param, reference_param):
@@ -61,7 +62,7 @@ def data_header(plant_param, reference_param):
   '''
 
 
-road = np.loadtxt("../data/straight.txt", delimiter=" ", dtype=np.float32)
+road = np.loadtxt("../data/tomei_sp2.txt", delimiter=" ", dtype=np.float32)
 tree = KDTree(road[:, :2])
 
 plantParam = VehicleParam()
@@ -70,18 +71,25 @@ plantParam = VehicleParam()
 vx = 20
 lbd0 = [1, 1]
 plant_type = "vehicle"
-adaptive_gain = 100.0
+adaptive_gain = 1.0
 umax = 0.4
 umin = -umax
 simT = 180
 dt = 0.01
+robust = "nothing"
+rbParam = 0.1
+noise_dev = 0.04
 
 def reference_input(t):
   r = np.array([[float(0.01*sin(1.0*t))]])
   return r
   # return np.array([[0.0]])
 
-filename_prefix = plant_type + "_vx_" + str(int(vx)) + "_gain_" + str("100") + "_straight_u04_001sin1_mass12"
+if robust == "nothing":
+  filename_prefix = plant_type + "_" + str(rbParam) + "_vx_" + str(int(vx)) + "_gain_" + str(int(adaptive_gain)) + "_tomei_u04_001sin1" + "_noise_" + str(noise_dev)
+else:
+  filename_prefix = plant_type + "_" + robust + "_" + str(rbParam) + "_vx_" + str(int(vx)) + "_gain_" + str(int(adaptive_gain)) + "_tomei_u04_001sin1" + "_noise_" + str(noise_dev)
+
 use_initial_guess = True
 
 ## processing
@@ -118,7 +126,7 @@ sv_dim, L, l = designed_state_space_eq(mss, lbd0)
 w1 = LinearSystem(ss(L, l, np.identity(sv_dim), 0), 0, "w1")
 w2 = LinearSystem(ss(L, l, np.identity(sv_dim), 0), 0, "w2")
 
-adaptive_ctrl = ConstraintAdaptiveControllerN2(ref, w1, w2, adaptive_gain, umin=umin, umax=umax)
+adaptive_ctrl = ConstraintAdaptiveControllerN2(ref, w1, w2, adaptive_gain, umin=umin, umax=umax, robust=robust, rbParam=rbParam)
 
 # set estimated param
 
@@ -148,8 +156,8 @@ adaptive_ctrl.theta = estTheta
 
 # adaptive_ctrl.theta = estTheta*1.1
 
-plantParam.mass = plantParam.mass*1.2
-plant = Vehicle(plantParam, plantInit, road)
+# plantParam.mass = plantParam.mass*1.2
+plant = Vehicle(plantParam, plantInit, road, noise_dev)
 
 res = sim(simT, dt, plant, adaptive_ctrl)
 
@@ -158,6 +166,7 @@ ts = []
 us = []
 yrs = []
 yps = []
+ypts = []
 es = []
 rs = []
 thetas = []
@@ -167,11 +176,12 @@ e1s = []
 e2s = []
 while (1):
   try:
-    t, yp, yr, e, theta, u, r, px, k1, e1, e2 = next(res)
+    t, yp, yr, e, theta, u, r, px, k1, e1, e2, ypt = next(res)
 
     ts.append(t)
     yps.append(yp)
     yrs.append(yr)
+    ypts.append(ypt)
     es.append(e)
     us.append(u)
     rs.append(r)
@@ -195,6 +205,7 @@ np.savetxt("../data/output/" + foldername +"/" + filename_prefix + "_theta.csv",
 np.savetxt("../data/output/" + foldername +"/" + filename_prefix + "_u.csv", np.array(us), delimiter=" ", header=header)
 np.savetxt("../data/output/" + foldername +"/" + filename_prefix + "_yp.csv", yps, delimiter=" ", header=header)
 np.savetxt("../data/output/" + foldername +"/" + filename_prefix + "_yr.csv", yrs, delimiter=" ", header=header)
+np.savetxt("../data/output/" + foldername +"/" + filename_prefix + "_ypt.csv", ypts, delimiter=" ", header=header)
 np.savetxt("../data/output/" + foldername +"/" + filename_prefix + "_r.csv", rs, delimiter=" ", header=header)
 np.savetxt("../data/output/" + foldername +"/" + filename_prefix + "_e.csv", es, delimiter=" ", header=header)
 np.savetxt("../data/output/" + foldername +"/" + filename_prefix + "_k1.csv", np.array(k1s), delimiter=" ", header=header)

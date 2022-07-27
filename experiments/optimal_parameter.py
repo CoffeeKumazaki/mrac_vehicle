@@ -56,7 +56,8 @@ for i in np.arange(0.5, 3.0, 0.1):
   # plot_step(ss(L, l, np.identity(sv_dim), 0), f"../data/output/step_{i}.png")
 
   ## plant LTI model
-  plantParam.mass = 1727.0*i
+  plantParam.cf = 94000.0*i
+  plantParam.cr = 94000.0*i
   A, B, C, D = linear_vehicle_model(plantParam, vx)
   pss = ss(A, B, C, D)
 
@@ -64,4 +65,4 @@ for i in np.arange(0.5, 3.0, 0.1):
   thetas.append(np.hstack([[i], estTheta.T[0]]))
 
 
-np.savetxt(f"../data/output/{plant_type}_mass_params.csv", np.array(thetas), delimiter=" ")
+np.savetxt(f"../data/output/{plant_type}_cfcr_params.csv", np.array(thetas), delimiter=" ")
