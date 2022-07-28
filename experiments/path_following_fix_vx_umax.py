@@ -4,6 +4,7 @@ import traceback
 import numpy as np
 from control.matlab import *
 from scipy.spatial import KDTree
+from pykalman import KalmanFilter
 
 from linear_system import *
 from vehicle_params import *
@@ -13,17 +14,22 @@ from mrac.controller import *
 from mrac.parameter_estimator import *
 from mrac.controller_designer import *
 
-def sim(simT, dt, plant, controller):
+def sim(simT, dt, plant, controller, kf):
   
   Ts = np.arange(0,simT, dt)
 
   r = np.array([[0.0]])
   u = np.array([[0.0]])
+  cov = kf.initial_state_covariance
+  yf = kf.initial_state_mean
 
   for t in tqdm.tqdm(Ts):
 
     yp = plant.observe()
     ypt = plant.observe(False)
+
+    yf, cov = kf.filter_update(yf, cov, yp)
+
     controller.update(dt, yp, r, u)
     yr = controller.ref.observe()
     e = yp[0]-yr[0]
@@ -34,10 +40,11 @@ def sim(simT, dt, plant, controller):
     plant.update(dt, [-xp[5]*xp[4]*plant.vehicle_param.mass, u])
     # plant.update(dt, u)
 
+    y = np.hstack([yp[0], ypt[0], yf[3], yr[0]])
     # yp = plant.observe(False)
 
     theta = controller.theta.T[0]
-    yield t, yp[0], yr[0], e, theta, u[0], r[0], plant.x, controller.k1[0], controller.e1[0], controller.e2[0], ypt[0]
+    yield t, yp[0], yr[0], e, theta, u[0], r[0], plant.x, controller.k1[0], controller.e1[0], controller.e2[0], y
 
 
 def data_header(plant_param, reference_param):
@@ -62,7 +69,7 @@ def data_header(plant_param, reference_param):
   '''
 
 
-road = np.loadtxt("../data/tomei_sp2.txt", delimiter=" ", dtype=np.float32)
+road = np.loadtxt("../data/straight.txt", delimiter=" ", dtype=np.float32)
 tree = KDTree(road[:, :2])
 
 plantParam = VehicleParam()
@@ -81,14 +88,14 @@ rbParam = 0.1
 noise_dev = 0.04
 
 def reference_input(t):
-  r = np.array([[float(0.01*sin(1.0*t))]])
+  r = np.array([[float(0.1*sin(1.0*t))]])
   return r
   # return np.array([[0.0]])
 
 if robust == "nothing":
-  filename_prefix = plant_type + "_" + str(rbParam) + "_vx_" + str(int(vx)) + "_gain_" + str(int(adaptive_gain)) + "_tomei_u04_001sin1" + "_noise_" + str(noise_dev)
+  filename_prefix = plant_type + "_" + str(rbParam) + "_vx_" + str(int(vx)) + "_gain_" + str(int(adaptive_gain)) + "_straight_u04_01sin1" + "_noise_" + str(noise_dev)
 else:
-  filename_prefix = plant_type + "_" + robust + "_" + str(rbParam) + "_vx_" + str(int(vx)) + "_gain_" + str(int(adaptive_gain)) + "_tomei_u04_001sin1" + "_noise_" + str(noise_dev)
+  filename_prefix = plant_type + "_" + robust + "_" + str(rbParam) + "_vx_" + str(int(vx)) + "_gain_" + str(int(adaptive_gain)) + "_straight_u04_01sin1" + "_noise_" + str(noise_dev)
 
 use_initial_guess = True
 
@@ -121,6 +128,14 @@ modelParam = VehicleParam()
 A, B, C, D = linear_vehicle_model_fb(modelParam, vx, -2.0, -0.05)
 mss = ss(A, B, C, D)
 ref = LinearSystem(mss, 0, "ref")
+
+kf = KalmanFilter(transition_matrices = A,
+                  observation_matrices = C,
+                  transition_covariance = np.eye(4)*0.1,
+                  observation_covariance = noise_dev,
+                  initial_state_mean = np.zeros(4),
+                  initial_state_covariance = np.diag([0.0, 0.0, 0.0, 0.1]),
+                  )
 
 sv_dim, L, l = designed_state_space_eq(mss, lbd0)
 w1 = LinearSystem(ss(L, l, np.identity(sv_dim), 0), 0, "w1")
@@ -159,7 +174,7 @@ adaptive_ctrl.theta = estTheta
 # plantParam.mass = plantParam.mass*1.2
 plant = Vehicle(plantParam, plantInit, road, noise_dev)
 
-res = sim(simT, dt, plant, adaptive_ctrl)
+res = sim(simT, dt, plant, adaptive_ctrl, kf=kf)
 
 
 ts = []
