@@ -21,24 +21,25 @@ def sim(simT, dt, plant, controller, kf):
   r = np.array([[0.0]])
   u = np.array([[0.0]])
   cov = kf.initial_state_covariance
-  yf = kf.initial_state_mean
+  state = kf.initial_state_mean
   tofs = np.array(kf.transition_offsets).T
   for t in tqdm.tqdm(Ts):
 
     yp = plant.observe()
     ypt = plant.observe(False)
-    yf, cov = kf.filter_update(yf, cov, observation=np.array(yp[0]), transition_offset=tofs.dot(u).T[0])
-    controller.update(dt, yp, r, u)
+    state, cov = kf.filter_update(state, cov, observation=np.array(yp[0]), transition_offset=tofs.dot(u).T[0])
+    yf = np.array([[state.dot(kf.observation_matrices)]])
+    controller.update(dt, yf, r, u)
     yr = controller.ref.observe()
     e = yp[0]-yr[0]
 
     r = reference_input(t)
-    u = adaptive_ctrl.calc_u(yp, r)
+    u = adaptive_ctrl.calc_u(yf, r)
     xp = plant.x
     plant.update(dt, [-xp[5]*xp[4]*plant.vehicle_param.mass, u])
     # plant.update(dt, u)
 
-    y = np.hstack([yp[0], ypt[0], yf[3], yr[0]])
+    y = np.hstack([yp[0], ypt[0], yf[0], yr[0]])
     # yp = plant.observe(False)
 
     theta = controller.theta.T[0]
@@ -67,9 +68,6 @@ def data_header(plant_param, reference_param):
   '''
 
 
-road = np.loadtxt("../data/straight.txt", delimiter=" ", dtype=np.float32)
-tree = KDTree(road[:, :2])
-
 plantParam = VehicleParam()
 
 ## Parameter settings
@@ -79,21 +77,32 @@ plant_type = "vehicle"
 adaptive_gain = 1.0
 umax = 0.4
 umin = -umax
-simT = 50
+simT = 180
 dt = 0.01
-robust = "nothing"
-rbParam = 0.1
+robust = "deadzone" # nothing of deadzone
+rbParam = 0.2
 noise_std = 0.2
 
+scenario = "tomei" # tomei or straight
+
 def reference_input(t):
-  r = np.array([[float(0.1*sin(1.0*t))]])
+  r = np.array([[float(0.01*sin(1.0*t))]])
   return r
   # return np.array([[0.0]])
 
-if robust == "nothing":
-  filename_prefix = plant_type + "_vx_" + str(int(vx)) + "_gain_" + str(int(adaptive_gain)) + "_straight_u04_01sin1" + "_noise_" + str(noise_std)
+road_file = ""
+if scenario == "tomei":
+  road_file = "../data/tomei_sp2.txt"
 else:
-  filename_prefix = plant_type + "_" + robust + "_" + str(rbParam) + "_vx_" + str(int(vx)) + "_gain_" + str(int(adaptive_gain)) + "_straight_u04_01sin1" + "_noise_" + str(noise_std)
+  road_file = "../data/straight.txt"
+
+road = np.loadtxt(road_file, delimiter=" ", dtype=np.float32)
+tree = KDTree(road[:, :2])
+
+if robust == "nothing":
+  filename_prefix = plant_type + "_vx_" + str(int(vx)) + "_gain_" + str(int(adaptive_gain)) + "_" + scenario + "_" + "u04_001sin1" + "_noise_" + str(noise_std)
+else:
+  filename_prefix = plant_type + "_" + robust + "_" + str(rbParam) + "_vx_" + str(int(vx)) + "_gain_" + str(int(adaptive_gain)) + "_" + scenario + "_" "u04_001sin1" + "_noise_" + str(noise_std)
 
 use_initial_guess = True
 
@@ -131,9 +140,9 @@ kf = KalmanFilter(transition_matrices = np.identity(4) + np.array(A)*dt,
                   transition_offsets = np.array(B).T*dt,
                   observation_matrices = C,
                   transition_covariance = np.diag([1e-4, 1e-4, 1e-4, 0.1]),
-                  observation_covariance = [noise_std*noise_std],
+                  observation_covariance = [10.0],
                   initial_state_mean = np.zeros(4),
-                  initial_state_covariance = np.diag([1e-4, 1e-4, 1e-4, noise_std*noise_std]),
+                  initial_state_covariance = np.diag([1e-9, 1e-9, 1e-9, noise_std*noise_std]),
                   em_vars = 'all'
                   )
 
