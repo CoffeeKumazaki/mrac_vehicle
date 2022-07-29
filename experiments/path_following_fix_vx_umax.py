@@ -22,14 +22,12 @@ def sim(simT, dt, plant, controller, kf):
   u = np.array([[0.0]])
   cov = kf.initial_state_covariance
   yf = kf.initial_state_mean
-
+  tofs = np.array(kf.transition_offsets).T
   for t in tqdm.tqdm(Ts):
 
     yp = plant.observe()
     ypt = plant.observe(False)
-
-    yf, cov = kf.filter_update(yf, cov, yp)
-
+    yf, cov = kf.filter_update(yf, cov, observation=np.array(yp[0]), transition_offset=tofs.dot(u).T[0])
     controller.update(dt, yp, r, u)
     yr = controller.ref.observe()
     e = yp[0]-yr[0]
@@ -81,11 +79,11 @@ plant_type = "vehicle"
 adaptive_gain = 1.0
 umax = 0.4
 umin = -umax
-simT = 180
+simT = 50
 dt = 0.01
 robust = "nothing"
 rbParam = 0.1
-noise_dev = 0.04
+noise_std = 0.2
 
 def reference_input(t):
   r = np.array([[float(0.1*sin(1.0*t))]])
@@ -93,9 +91,9 @@ def reference_input(t):
   # return np.array([[0.0]])
 
 if robust == "nothing":
-  filename_prefix = plant_type + "_" + str(rbParam) + "_vx_" + str(int(vx)) + "_gain_" + str(int(adaptive_gain)) + "_straight_u04_01sin1" + "_noise_" + str(noise_dev)
+  filename_prefix = plant_type + "_vx_" + str(int(vx)) + "_gain_" + str(int(adaptive_gain)) + "_straight_u04_01sin1" + "_noise_" + str(noise_std)
 else:
-  filename_prefix = plant_type + "_" + robust + "_" + str(rbParam) + "_vx_" + str(int(vx)) + "_gain_" + str(int(adaptive_gain)) + "_straight_u04_01sin1" + "_noise_" + str(noise_dev)
+  filename_prefix = plant_type + "_" + robust + "_" + str(rbParam) + "_vx_" + str(int(vx)) + "_gain_" + str(int(adaptive_gain)) + "_straight_u04_01sin1" + "_noise_" + str(noise_std)
 
 use_initial_guess = True
 
@@ -129,12 +127,14 @@ A, B, C, D = linear_vehicle_model_fb(modelParam, vx, -2.0, -0.05)
 mss = ss(A, B, C, D)
 ref = LinearSystem(mss, 0, "ref")
 
-kf = KalmanFilter(transition_matrices = A,
+kf = KalmanFilter(transition_matrices = np.identity(4) + np.array(A)*dt,
+                  transition_offsets = np.array(B).T*dt,
                   observation_matrices = C,
-                  transition_covariance = np.eye(4)*0.1,
-                  observation_covariance = noise_dev,
+                  transition_covariance = np.diag([1e-4, 1e-4, 1e-4, 0.1]),
+                  observation_covariance = [noise_std*noise_std],
                   initial_state_mean = np.zeros(4),
-                  initial_state_covariance = np.diag([0.0, 0.0, 0.0, 0.1]),
+                  initial_state_covariance = np.diag([1e-4, 1e-4, 1e-4, noise_std*noise_std]),
+                  em_vars = 'all'
                   )
 
 sv_dim, L, l = designed_state_space_eq(mss, lbd0)
@@ -172,7 +172,7 @@ adaptive_ctrl.theta = estTheta
 # adaptive_ctrl.theta = estTheta*1.1
 
 # plantParam.mass = plantParam.mass*1.2
-plant = Vehicle(plantParam, plantInit, road, noise_dev)
+plant = Vehicle(plantParam, plantInit, road, noise_std)
 
 res = sim(simT, dt, plant, adaptive_ctrl, kf=kf)
 
