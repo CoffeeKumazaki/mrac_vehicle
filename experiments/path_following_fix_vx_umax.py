@@ -80,13 +80,13 @@ umin = -umax
 simT = 180
 dt = 0.01
 robust = "deadzone" # nothing of deadzone
-rbParam = 0.2
+rbParam = 1.0
 noise_std = 0.2
 
-scenario = "tomei" # tomei or straight
+scenario = "straight" # tomei or straight
 
 def reference_input(t):
-  r = np.array([[float(0.01*sin(1.0*t))]])
+  r = np.array([[float(0.1*sin(1.0*t))]])
   return r
   # return np.array([[0.0]])
 
@@ -100,9 +100,9 @@ road = np.loadtxt(road_file, delimiter=" ", dtype=np.float32)
 tree = KDTree(road[:, :2])
 
 if robust == "nothing":
-  filename_prefix = plant_type + "_vx_" + str(int(vx)) + "_gain_" + str(int(adaptive_gain)) + "_" + scenario + "_" + "u04_001sin1" + "_noise_" + str(noise_std)
+  filename_prefix = plant_type + "_vx_" + str(int(vx)) + "_gain_" + str(int(adaptive_gain)) + "_" + scenario + "_" + "u04_01sin1" + "_noise_" + str(noise_std) + "_mass120"
 else:
-  filename_prefix = plant_type + "_" + robust + "_" + str(rbParam) + "_vx_" + str(int(vx)) + "_gain_" + str(int(adaptive_gain)) + "_" + scenario + "_" "u04_001sin1" + "_noise_" + str(noise_std)
+  filename_prefix = plant_type + "_" + robust + "_" + str(rbParam) + "_vx_" + str(int(vx)) + "_gain_" + str(int(adaptive_gain)) + "_" + scenario + "_" "u04_01sin1" + "_noise_" + str(noise_std) + "_mass120"
 
 use_initial_guess = True
 
@@ -158,8 +158,8 @@ adaptive_ctrl = ConstraintAdaptiveControllerN2(ref, w1, w2, adaptive_gain, umin=
 A, B, C, D = linear_vehicle_model(plantParam, vx)
 pss = ss(A, B, C, D)
 
-print(tf(pss))
 print(tf(mss))
+print(tf(pss))
 
 estTheta = estimate_theta(pss, mss, sv_dim, lbd0)
 print(estTheta)
@@ -180,7 +180,10 @@ adaptive_ctrl.theta = estTheta
 
 # adaptive_ctrl.theta = estTheta*1.1
 
-# plantParam.mass = plantParam.mass*1.2
+plantParam.mass = plantParam.mass*1.2
+A, B, C, D = linear_vehicle_model(plantParam, vx)
+ptss = ss(A, B, C, D)
+print(tf(ptss))
 plant = Vehicle(plantParam, plantInit, road, noise_std)
 
 res = sim(simT, dt, plant, adaptive_ctrl, kf=kf)

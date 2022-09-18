@@ -1,4 +1,3 @@
-
 import numpy as np
 import matplotlib.pyplot as plt
 from control.matlab import *
@@ -19,7 +18,7 @@ def plot_step(sys, file = None):
 
 plantParam = VehicleParam()
 
-vx = 20
+vx = 10
 plant_type = "vehicle"
 
 if plant_type == "vehicle":
@@ -41,28 +40,31 @@ elif plant_type == "truck":
 else:
   plant_type = "prius"
 
-## Reference model
-modelParam = VehicleParam()
-A, B, C, D = linear_vehicle_model_fb(modelParam, vx,  -2.0, -0.05)
-mss = ss(A, B, C, D)
-ref = LinearSystem(mss, 0, "ref")
+thetas =  []
+for vx in [5.0, 7.5, 10.0, 15.0, 20.0, 25.0, 30.0]:
 
-thetas = []
 
-for i in np.arange(0.5, 3.0, 0.1):
-  lbd0 = [1, 1]
+  ## Reference model
+  modelParam = VehicleParam()
+  A, B, C, D = linear_vehicle_model_fb(modelParam, vx,  -2.0, -0.05)
+  mss = ss(A, B, C, D)
+  ref = LinearSystem(mss, 0, "ref")
+
+
+  # for i in np.arange(0.5, 3.0, 0.1):
+  lbd0 = [1, 0.1]
   sv_dim, L, l = designed_state_space_eq(mss, lbd0)
 
   # plot_step(ss(L, l, np.identity(sv_dim), 0), f"../data/output/step_{i}.png")
 
   ## plant LTI model
-  plantParam.cf = 94000.0*i
-  plantParam.cr = 94000.0*i
+  # plantParam.cf = 94000.0*i
+  # plantParam.cr = 94000.0*i
   A, B, C, D = linear_vehicle_model(plantParam, vx)
   pss = ss(A, B, C, D)
 
   estTheta = estimate_theta(pss, mss, sv_dim, lbd0)
-  thetas.append(np.hstack([[i], estTheta.T[0]]))
+  thetas.append(np.hstack([[vx], estTheta.T[0]]))
 
 
-np.savetxt(f"../data/output/{plant_type}_cfcr_params.csv", np.array(thetas), delimiter=" ")
+np.savetxt(f"../data/output/{plant_type}_vx_params_01.csv", np.array(thetas), delimiter=" ")
