@@ -73,8 +73,8 @@ plantParam = VehicleParam()
 ## Parameter settings
 vx = 20
 lbd0 = [1, 1]
-plant_type = "vehicle"
-adaptive_gain = 1.0
+plant_type = "truck"
+adaptive_gain = 0.1
 umax = 0.4
 umin = -umax
 simT = 180
@@ -83,12 +83,12 @@ robust = "deadzone" # nothing of deadzone
 rbParam = 1.0
 noise_std = 0.2
 
-scenario = "straight" # tomei or straight
+scenario = "tomei" # tomei or straight
 
 def reference_input(t):
-  r = np.array([[float(0.1*sin(1.0*t))]])
-  return r
-  # return np.array([[0.0]])
+  # r = np.array([[float(0.1*sin(1.0*t))]])
+  # return r
+  return np.array([[0.0]])
 
 road_file = ""
 if scenario == "tomei":
@@ -104,7 +104,7 @@ if robust == "nothing":
 else:
   filename_prefix = plant_type + "_" + robust + "_" + str(rbParam) + "_vx_" + str(int(vx)) + "_gain_" + str(int(adaptive_gain)) + "_" + scenario + "_" "u04_01sin1" + "_noise_" + str(noise_std) + "_mass120"
 
-use_initial_guess = True
+use_initial_guess = False
 
 ## processing
 if plant_type == "vehicle":
@@ -162,21 +162,27 @@ print(tf(mss))
 print(tf(pss))
 
 estTheta = estimate_theta(pss, mss, sv_dim, lbd0)
-print(estTheta)
+initTheta = np.zeros_like(estTheta)
+initTheta[-1] = 1.0
 header = data_header(plantParam, modelParam)
-
 ### give initial parameters
 if (use_initial_guess):
   estTheta = estimate_theta(pss, mss, sv_dim, lbd0)
+  print(estTheta)
+  initTheta = estTheta
 else:
+  ## FB 要素の再現のみ初期推定.
   tempParam = VehicleParam()
   A, B, C, D = linear_vehicle_model(tempParam, vx)
   tss = ss(A, B, C, D)
 
   estTheta = estimate_theta(tss, mss, sv_dim, lbd0)
   print(estTheta)
+  initTheta = estTheta
 
-adaptive_ctrl.theta = estTheta
+adaptive_ctrl.theta = initTheta
+print("Init Theta")
+print(initTheta)
 
 # adaptive_ctrl.theta = estTheta*1.1
 
