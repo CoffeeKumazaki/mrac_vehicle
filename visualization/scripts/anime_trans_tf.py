@@ -12,7 +12,7 @@ from vehicle_dynamics import *
 from mrac.parameter_estimator import *
 from mrac.controller_designer import designed_state_space_eq
 
-data_path = "../../data/output/with_init_param/vehicle_vx_10_gain_10_r_001sin1_theta.csv"
+data_path = "../../data/output/no_init_param/vehicle_deadzone_0.0_vx_20_gain_custom_straight_u04_01sin05_noise_0.0_mass200_theta.csv"
 params = pd.read_csv(data_path, header=None, delimiter=' ', comment='#')
 
 intetval = 100
@@ -21,7 +21,7 @@ gif_name = data_path.split("/")[-1].split(".")[0]
 
 print(gif_name)
 
-vx = 10.0
+vx = 20.0
 lbd0 = [1, 1]
 
 ## Plant Model

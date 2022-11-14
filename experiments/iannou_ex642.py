@@ -1,6 +1,7 @@
 from math import sin
 import tqdm
 import traceback
+import matplotlib.pyplot as plt
 import numpy as np
 from control.matlab import *
 from scipy.spatial import KDTree
@@ -36,7 +37,8 @@ def sim(simT, dt, plant, controller):
 
     e = yp[0]-yr[0]
     theta = controller.theta.T[0]
-    yield t, yp[0], yr[0], e, theta, u[0], r[0], plant.state.T[0]
+    omega = np.hstack([controller.w1.state[0], controller.w2.state[0]])
+    yield t, yp[0], yr[0], e, theta, u[0], r[0], plant.state.T[0], omega
 
 
 def data_header(plant_param, reference_param):
@@ -62,23 +64,27 @@ def data_header(plant_param, reference_param):
 
 
 lbd0 = [1, 2]
-plant_type = "example642"
-adaptive_gain = np.array([2, 4, 0.8, 1]) * 50
+plant_type = "example642_with_init_sin"
+adaptive_gain = 1.0 # np.array([2, 4, 0.8, 1])
+initTheta = np.array([[3, 30, -8, 3]])
+initTheta = np.zeros_like(initTheta)
+# initTheta = np.array([[ -7, -84, -21, 5]]) ## opt
+# initTheta = np.array([[ -4, -80, -19, 2]])
 umax = None
 umin = None
-simT = 180
+simT = 50
 use_initial_guess = False
 
 def reference_input(t):
   r = np.array([[float(3.0*sin(4.9*t) + 0.5*sin(0.7*t))]])
   return r
-  # return np.array([[0.0]])
+  # return np.array([[1.0]])
 
 filename_prefix = plant_type + "_gain_1"
 
 ## Reference model
 modelParam = VehicleParam()
-mss = tf([5], [1, 5, 25])
+mss = tf([1], [1, 2, 1])
 ref = LinearSystem(mss, 0, "ref")
 
 sv_dim, L, l = designed_state_space_eq(mss, lbd0)
@@ -90,12 +96,18 @@ Lp = -np.identity(phi_dim)*1
 lp = np.identity(phi_dim)*1
 phi = LinearSystem(ss(Lp, lp, np.identity(phi_dim), 0), 0, 'phi')
 
+print("w1")
+print(w1)
+print("w2")
+print(w2)
+print("phi")
+print(phi)
 adaptive_ctrl = AdaptiveControllerN2(ref, w1, w2, phi, adaptive_gain, umin=umin, umax=umax)
 
 # set estimated param
 
 ## plant LTI model
-pss = tf([1], [1, 3, -15])
+pss = tf([1], [1, 3, -10])
 
 print(tf(pss))
 print(tf(mss))
@@ -105,8 +117,10 @@ estTheta = estimate_theta(pss, mss, sv_dim, lbd0)
 print(estTheta)
 
 ### give initial parameters
-if (use_initial_guess):
-  adaptive_ctrl.theta = estTheta
+print(initTheta)
+adaptive_ctrl.theta = initTheta.T
+# if (use_initial_guess):
+#  adaptive_ctrl.theta = estTheta
 
 # adaptive_ctrl.theta[0] = 0
 # adaptive_ctrl.theta[1] = -20
@@ -115,6 +129,30 @@ if (use_initial_guess):
 
 
 plant = LinearSystem(pss, 0)
+
+# n, L, _ = designed_state_space_eq(mss, lbd0)
+print(initTheta)
+num, den = current_tf(pss, initTheta[0], sv_dim, np.hstack([[1.0], -L[0]]))
+est_tf = tf(num, den)
+
+def draw_pgmap(system, color, size=50, label=""):
+  zeros = zero(system)
+  zeros_x = zeros.real
+  zeros_y = zeros.imag
+
+  poles = pole(system)
+  print(zeros)
+  print(poles)
+  poles_x = poles.real
+  poles_y = poles.imag
+  plt.scatter(zeros_x, zeros_y, marker='x', color=color, s=size, label=label+" zeros")
+  plt.scatter(poles_x, poles_y, marker='o', facecolors='none', edgecolors=color, s=size, label=label+" poles")
+  if label != "":
+    plt.legend()
+
+draw_pgmap(est_tf, "blue", label="plant")
+draw_pgmap(mss, "red", 100, label="reference")
+plt.savefig("iannou_ex642.png")
 
 res = sim(simT, 0.01, plant, adaptive_ctrl)
 
@@ -126,10 +164,11 @@ yps = []
 es = []
 rs = []
 thetas = []
+omegas = []
 pxs = []
 while (1):
   try:
-    t, yp, yr, e, theta, u, r, px = next(res)
+    t, yp, yr, e, theta, u, r, px, omega = next(res)
 
     ts.append(t)
     yps.append(yp)
@@ -139,6 +178,7 @@ while (1):
     rs.append(r)
     thetas.append(theta)
     pxs.append(px)
+    omegas.append(omega)
   
   except Exception as e:
     print("finish", e)
@@ -156,3 +196,4 @@ np.savetxt("../data/output/" + foldername +"/" + filename_prefix + "_u.csv", np.
 np.savetxt("../data/output/" + foldername +"/" + filename_prefix + "_yp.csv", yps, delimiter=" ")
 np.savetxt("../data/output/" + foldername +"/" + filename_prefix + "_yr.csv", yrs, delimiter=" ")
 np.savetxt("../data/output/" + foldername +"/" + filename_prefix + "_e.csv", es, delimiter=" ")
+np.savetxt("../data/output/" + foldername +"/" + filename_prefix + "_w.csv", omegas, delimiter=" ")

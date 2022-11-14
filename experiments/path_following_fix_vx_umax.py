@@ -36,6 +36,8 @@ def sim(simT, dt, plant, controller, kf):
     r = reference_input(t)
     u = adaptive_ctrl.calc_u(yf, r)
     xp = plant.x
+    # u += -0.05*(yr[0])
+    # u += -2.0*(controller.ref.state[2])
     plant.update(dt, [-xp[5]*xp[4]*plant.vehicle_param.mass, u])
     # plant.update(dt, u)
 
@@ -73,22 +75,24 @@ plantParam = VehicleParam()
 ## Parameter settings
 vx = 20
 lbd0 = [1, 1]
-plant_type = "truck"
-adaptive_gain = 0.1
+plant_type = "van"
+adaptive_gain = 1.0
+adaptive_gain = 0.0 # np.array([1.0, 10.0, 100.0, 10.0, 100.0, 100.0, 1.0, 1.0])
 umax = 0.4
 umin = -umax
-simT = 180
+simT = 100
 dt = 0.01
 robust = "deadzone" # nothing of deadzone
-rbParam = 1.0
-noise_std = 0.2
+rbParam = 0.0
+noise_std = 0.0
+use_initial_guess = True
 
-scenario = "tomei" # tomei or straight
+scenario = "straight" # tomei or straight
 
 def reference_input(t):
-  # r = np.array([[float(0.1*sin(1.0*t))]])
-  # return r
-  return np.array([[0.0]])
+  r = np.array([[float(0.05*sin(0.5*t))]])
+  return r
+  # return np.array([[0.0]])
 
 road_file = ""
 if scenario == "tomei":
@@ -99,12 +103,19 @@ else:
 road = np.loadtxt(road_file, delimiter=" ", dtype=np.float32)
 tree = KDTree(road[:, :2])
 
-if robust == "nothing":
-  filename_prefix = plant_type + "_vx_" + str(int(vx)) + "_gain_" + str(int(adaptive_gain)) + "_" + scenario + "_" + "u04_01sin1" + "_noise_" + str(noise_std) + "_mass120"
-else:
-  filename_prefix = plant_type + "_" + robust + "_" + str(rbParam) + "_vx_" + str(int(vx)) + "_gain_" + str(int(adaptive_gain)) + "_" + scenario + "_" "u04_01sin1" + "_noise_" + str(noise_std) + "_mass120"
+def gain2str(gain):
+  if type(gain) is np.ndarray:
+    return "custom"
 
-use_initial_guess = False
+  if (gain < 1):
+    return str(adaptive_gain).replace(".", "")
+  else:
+    return str(int(adaptive_gain))
+
+if robust == "nothing":
+  filename_prefix = plant_type + "_vx_" + str(int(vx)) + "_gain_" + gain2str(adaptive_gain) + "_" + scenario + "_" + "u04_005sin05" + "_noise_" + str(noise_std) + ""
+else:
+  filename_prefix = plant_type + "_" + robust + "_" + str(rbParam) + "_vx_" + str(int(vx)) + "_gain_" + gain2str(adaptive_gain) + "_" + scenario + "_" "u04_005sin05" + "_noise_" + str(noise_std) + ""
 
 ## processing
 if plant_type == "vehicle":
@@ -123,6 +134,22 @@ elif plant_type == "truck":
   plantParam.lr = 1.5
   plantParam.Iz = 20600.0
   
+elif plant_type == "small": ## nissan cube
+  plantParam.mass = 1180.0
+  plantParam.cf = 90000.0
+  plantParam.cr = 90000.0
+  plantParam.lf = 1.05
+  plantParam.lr = 1.48
+  plantParam.Iz = 1945.0
+
+elif plant_type == "van":
+  plantParam.mass = 3040.0
+  plantParam.cf = 90000.0
+  plantParam.cr = 90000.0
+  plantParam.lf = 1.85
+  plantParam.lr = 1.895
+  plantParam.Iz = 10660.0
+  
 else:
   plant_type = "prius"
 
@@ -133,6 +160,7 @@ plantInit = [road[0,0], road[0,1], road[0,2], vx, 0, 0, 0]
 ## Reference model
 modelParam = VehicleParam()
 A, B, C, D = linear_vehicle_model_fb(modelParam, vx, -2.0, -0.05)
+print(C)
 mss = ss(A, B, C, D)
 ref = LinearSystem(mss, 0, "ref")
 
@@ -165,6 +193,7 @@ estTheta = estimate_theta(pss, mss, sv_dim, lbd0)
 initTheta = np.zeros_like(estTheta)
 initTheta[-1] = 1.0
 header = data_header(plantParam, modelParam)
+
 ### give initial parameters
 if (use_initial_guess):
   estTheta = estimate_theta(pss, mss, sv_dim, lbd0)
@@ -177,7 +206,6 @@ else:
   tss = ss(A, B, C, D)
 
   estTheta = estimate_theta(tss, mss, sv_dim, lbd0)
-  print(estTheta)
   initTheta = estTheta
 
 adaptive_ctrl.theta = initTheta
@@ -185,12 +213,20 @@ print("Init Theta")
 print(initTheta)
 
 # adaptive_ctrl.theta = estTheta*1.1
-
-plantParam.mass = plantParam.mass*1.2
+'''
+plantParam.mass *= 2.0
+plantParam.Iz *= 2.0
+plantParam.cf *= 2.0
+plantParam.cr *= 2.0
+'''
 A, B, C, D = linear_vehicle_model(plantParam, vx)
 ptss = ss(A, B, C, D)
 print(tf(ptss))
 plant = Vehicle(plantParam, plantInit, road, noise_std)
+print("True Parameter")
+trueTheta = estimate_theta(ptss, mss, sv_dim, lbd0)
+print(trueTheta)
+
 
 res = sim(simT, dt, plant, adaptive_ctrl, kf=kf)
 

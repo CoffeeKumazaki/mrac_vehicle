@@ -81,11 +81,11 @@ plant_type = "byrne1995"
 adaptive_gain = 0.001
 umax = None
 umin = None
-simT = 180
+simT = 30
 use_initial_guess = False
 
 def reference_input(t):
-  r = np.array([[float(3.0*sin(4.9*t) + 0.5*sin(0.7*t))]])
+  r = np.array([[float(3.0*sin(t))]])
   return r
   # return np.array([[0.0]])
 
@@ -127,6 +127,8 @@ print(estTheta)
 ### give initial parameters
 if (use_initial_guess):
   adaptive_ctrl.theta = estTheta
+else:
+  adaptive_ctrl.theta = np.zeros_like(adaptive_ctrl.theta)
 
 # adaptive_ctrl.theta[0] = 0
 # adaptive_ctrl.theta[1] = -20
