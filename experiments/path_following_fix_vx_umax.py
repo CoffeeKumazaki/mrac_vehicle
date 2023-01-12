@@ -76,7 +76,7 @@ plantParam = VehicleParam()
 vx = 20
 lbd0 = [1, 1]
 plant_type = "van"
-adaptive_gain = 1.0
+# adaptive_gain = 1.0
 adaptive_gain = 0.0 # np.array([1.0, 10.0, 100.0, 10.0, 100.0, 100.0, 1.0, 1.0])
 umax = 0.4
 umin = -umax
@@ -85,7 +85,7 @@ dt = 0.01
 robust = "deadzone" # nothing of deadzone
 rbParam = 0.0
 noise_std = 0.0
-use_initial_guess = True
+use_initial_guess = False
 
 scenario = "straight" # tomei or straight
 

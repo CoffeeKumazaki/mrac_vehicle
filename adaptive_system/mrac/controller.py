@@ -140,7 +140,7 @@ class ConstraintAdaptiveControllerN2(AdaptiveController):
       self.phi.append(copy.deepcopy(ref))
     
     self.theta_phi = copy.deepcopy(ref)
-    self.k1 = 1.0
+    self.k1 = np.array([1.0])
     self.xi = copy.deepcopy(ref)
     self.kd = np.array([0.0])
     self.du = np.array([[0.0]])

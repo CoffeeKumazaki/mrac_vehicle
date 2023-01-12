@@ -52,7 +52,7 @@ for vx in [5.0, 7.5, 10.0, 15.0, 20.0, 25.0, 30.0]:
 
 
   # for i in np.arange(0.5, 3.0, 0.1):
-  lbd0 = [1, 0.1]
+  lbd0 = [1, 20]
   sv_dim, L, l = designed_state_space_eq(mss, lbd0)
 
   # plot_step(ss(L, l, np.identity(sv_dim), 0), f"../data/output/step_{i}.png")
@@ -67,4 +67,4 @@ for vx in [5.0, 7.5, 10.0, 15.0, 20.0, 25.0, 30.0]:
   thetas.append(np.hstack([[vx], estTheta.T[0]]))
 
 
-np.savetxt(f"../data/output/{plant_type}_vx_params_01.csv", np.array(thetas), delimiter=" ")
+np.savetxt(f"../data/output/{plant_type}_vx_params_20.csv", np.array(thetas), delimiter=" ")
