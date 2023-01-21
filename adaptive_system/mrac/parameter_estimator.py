@@ -78,7 +78,7 @@ def estimate_theta(plant_tf, reference_tf, omega_dim, lambda0_tf_coeffs):
 
   etheta[id][0] = km/kp
 
-
+  # theta10, theta11, theta12, theta20, theta21, theta22, theta3, k
   return etheta
 
 
