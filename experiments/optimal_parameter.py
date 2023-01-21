@@ -37,11 +37,28 @@ elif plant_type == "truck":
   plantParam.lr = 1.5
   plantParam.Iz = 20600.0
   
+elif plant_type == "small": ## nissan cube
+  plantParam.mass = 1180.0
+  plantParam.cf = 90000.0
+  plantParam.cr = 90000.0
+  plantParam.lf = 1.05
+  plantParam.lr = 1.48
+  plantParam.Iz = 1945.0
+
+elif plant_type == "van":
+  plantParam.mass = 3040.0
+  plantParam.cf = 90000.0
+  plantParam.cr = 90000.0
+  plantParam.lf = 1.85
+  plantParam.lr = 1.895
+  plantParam.Iz = 10660.0
+
 else:
   plant_type = "prius"
 
 thetas =  []
-for vx in [5.0, 7.5, 10.0, 15.0, 20.0, 25.0, 30.0]:
+vx = 20
+for l0 in [0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0, 25.0, 50.0]:
 
 
   ## Reference model
@@ -52,7 +69,7 @@ for vx in [5.0, 7.5, 10.0, 15.0, 20.0, 25.0, 30.0]:
 
 
   # for i in np.arange(0.5, 3.0, 0.1):
-  lbd0 = [1, 20]
+  lbd0 = [1, l0]
   sv_dim, L, l = designed_state_space_eq(mss, lbd0)
 
   # plot_step(ss(L, l, np.identity(sv_dim), 0), f"../data/output/step_{i}.png")
@@ -64,7 +81,7 @@ for vx in [5.0, 7.5, 10.0, 15.0, 20.0, 25.0, 30.0]:
   pss = ss(A, B, C, D)
 
   estTheta = estimate_theta(pss, mss, sv_dim, lbd0)
-  thetas.append(np.hstack([[vx], estTheta.T[0]]))
+  thetas.append(np.hstack([[l0], estTheta.T[0]]))
 
 
-np.savetxt(f"../data/output/{plant_type}_vx_params_20.csv", np.array(thetas), delimiter=" ")
+np.savetxt(f"../data/output/{plant_type}_vx_20_params.csv", np.array(thetas), delimiter=" ")
