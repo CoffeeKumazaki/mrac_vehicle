@@ -8,9 +8,9 @@ set style line 4 dt 1 lc "blue" pt 5 lw linewidth ps 1.3
 set style line 5 dt 2 lc "blue" pt 5 lw linewidth ps 1.3
 set style line 6 dt 3 lc "blue" pt 5 lw linewidth ps 1.3
 
-set style line 7 dt 1 lc "dark-green" pt 9 lw linewidth ps 1.3
-set style line 8 dt 2 lc "dark-green" pt 9 lw linewidth ps 1.3
-set style line 9 dt 3 lc "dark-green" pt 9 lw linewidth ps 1.3
+set style line 7 dt 1 lc "dark-green" pt 9 lw linewidth ps 1.8
+set style line 8 dt 2 lc "dark-green" pt 9 lw linewidth ps 1.8
+set style line 9 dt 3 lc "dark-green" pt 9 lw linewidth ps 1.8
 
 height = 0.29
 lms  = 0.11
