@@ -45,7 +45,7 @@ set key left bottom
 set ylabel "{/Symbol q}_{3}"
 set ytics -20, 5
 set yr[-18:2]
-set xlabel "{/Symbol L}_0"
+set xlabel "{/Symbol a}"
 
 p "../../data/output/small_vx_20_params.csv" u 1:8 w lp ls 1 ti "" \
 , "../../data/output/van_vx_20_params.csv" u 1:8 w lp ls 4 ti "" \
