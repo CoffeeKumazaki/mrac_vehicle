@@ -75,12 +75,12 @@ plantParam = VehicleParam()
 ## Parameter settings
 vx = 20
 lbd0 = [1, 1]
-plant_type = "van"
+plant_type = "small"
 # adaptive_gain = 1.0
-adaptive_gain = 0.0 # np.array([1.0, 10.0, 100.0, 10.0, 100.0, 100.0, 1.0, 1.0])
+adaptive_gain = np.array([1.0, 10.0, 100.0, 10.0, 100.0, 100.0, 1.0, 1.0])*10
 umax = 0.4
 umin = -umax
-simT = 100
+simT = 200
 dt = 0.01
 robust = "deadzone" # nothing of deadzone
 rbParam = 0.0
@@ -89,9 +89,28 @@ use_initial_guess = False
 
 scenario = "straight" # tomei or straight
 
+def case01(t):
+  if (t < 8*pi) :
+    r = np.array([[float(0.05*sin(0.5*t))]])
+  elif (t < 30) :
+    r = 0.0
+  elif (t<40):
+    r = 0.02*(t-30) 
+  elif (t<60):
+    r = 0.2
+  elif (t<80):
+    r = -0.02*(t-60) + 0.2
+  elif (t<100):
+    r = -0.2
+  else:
+    r = 0.0
+  return np.array([[float(r)]])
+
 def reference_input(t):
   r = np.array([[float(0.05*sin(0.5*t))]])
   return r
+  # return case01(t)
+
   # return np.array([[0.0]])
 
 road_file = ""
@@ -114,8 +133,10 @@ def gain2str(gain):
 
 if robust == "nothing":
   filename_prefix = plant_type + "_vx_" + str(int(vx)) + "_gain_" + gain2str(adaptive_gain) + "_" + scenario + "_" + "u04_005sin05" + "_noise_" + str(noise_std) + ""
+  # filename_prefix = plant_type + "_vx_" + str(int(vx)) + "_gain_" + gain2str(adaptive_gain) + "_" + scenario + "_" + "u04_case01" + "_noise_" + str(noise_std) + ""
 else:
   filename_prefix = plant_type + "_" + robust + "_" + str(rbParam) + "_vx_" + str(int(vx)) + "_gain_" + gain2str(adaptive_gain) + "_" + scenario + "_" "u04_005sin05" + "_noise_" + str(noise_std) + ""
+  # filename_prefix = plant_type + "_" + robust + "_" + str(rbParam) + "_vx_" + str(int(vx)) + "_gain_" + gain2str(adaptive_gain) + "_" + scenario + "_" "u04_case01" + "_noise_" + str(noise_std) + ""
 
 ## processing
 if plant_type == "vehicle":
