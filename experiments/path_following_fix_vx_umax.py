@@ -36,16 +36,21 @@ def sim(simT, dt, plant, controller, kf):
     r = reference_input(t)
     u = adaptive_ctrl.calc_u(yf, r)
     xp = plant.x
-    # u += -0.05*(yr[0])
-    # u += -2.0*(controller.ref.state[2])
-    plant.update(dt, [-xp[5]*xp[4]*plant.vehicle_param.mass, u])
+    ## without adaptive
+    if (not use_adaptive):
+      u = r + np.array([-0.05*(yr[0])])
+      u += np.array(-2.0*(controller.ref.state[2]))
     # plant.update(dt, u)
+    
+    ## with adaptation
+    plant.update(dt, [-xp[5]*xp[4]*plant.vehicle_param.mass, u])
 
     y = np.hstack([yp[0], ypt[0], yf[0], yr[0]])
+    uu = np.hstack([u[0], controller.du[0]])
     # yp = plant.observe(False)
 
     theta = controller.theta.T[0]
-    yield t, yp[0], yr[0], e, theta, u[0], r[0], plant.x, controller.k1[0], controller.e1[0], controller.e2[0], y
+    yield t, yp[0], yr[0], e, theta, uu, r[0], plant.x, controller.k1[0], controller.e1[0], controller.e2[0], y
 
 
 def data_header(plant_param, reference_param):
@@ -73,14 +78,15 @@ def data_header(plant_param, reference_param):
 plantParam = VehicleParam()
 
 ## Parameter settings
+use_adaptive = True
 vx = 20
 lbd0 = [1, 1]
-plant_type = "small"
+plant_type = "van"
 # adaptive_gain = 1.0
-adaptive_gain = np.array([1.0, 10.0, 100.0, 10.0, 100.0, 100.0, 1.0, 1.0])*10
+adaptive_gain = np.array([1.0, 10.0, 100.0, 10.0, 100.0, 100.0, 1.0, 1.0])
 umax = 0.4
 umin = -umax
-simT = 200
+simT = 100
 dt = 0.01
 robust = "deadzone" # nothing of deadzone
 rbParam = 0.0
@@ -88,6 +94,11 @@ noise_std = 0.0
 use_initial_guess = False
 
 scenario = "straight" # tomei or straight
+input_type = "case00"
+
+def case00(t):
+  r = 0.05*sin(0.5*t)
+  return np.array([[float(r)]])
 
 def case01(t):
   if (t < 8*pi) :
@@ -107,9 +118,12 @@ def case01(t):
   return np.array([[float(r)]])
 
 def reference_input(t):
-  r = np.array([[float(0.05*sin(0.5*t))]])
-  return r
-  # return case01(t)
+  
+  return eval(input_type + "(t)")
+  if input_type == "case00":
+    return case00(t)
+  elif input_type == "case01":
+    return case01(t)
 
   # return np.array([[0.0]])
 
@@ -124,7 +138,7 @@ tree = KDTree(road[:, :2])
 
 def gain2str(gain):
   if type(gain) is np.ndarray:
-    return "custom"
+    return "custom100"
 
   if (gain < 1):
     return str(adaptive_gain).replace(".", "")
@@ -132,11 +146,14 @@ def gain2str(gain):
     return str(int(adaptive_gain))
 
 if robust == "nothing":
-  filename_prefix = plant_type + "_vx_" + str(int(vx)) + "_gain_" + gain2str(adaptive_gain) + "_" + scenario + "_" + "u04_005sin05" + "_noise_" + str(noise_std) + ""
-  # filename_prefix = plant_type + "_vx_" + str(int(vx)) + "_gain_" + gain2str(adaptive_gain) + "_" + scenario + "_" + "u04_case01" + "_noise_" + str(noise_std) + ""
+  filename_prefix = plant_type + "_vx_" + str(int(vx)) + "_gain_" + gain2str(adaptive_gain) + "_" + scenario + "_" + "_u04_" + input_type + "_noise_" + str(noise_std) + ""
+  # filename_prefix = plant_type + "_vx_" + str(int(vx)) + "_gain_" + gain2str(adaptive_gain) + "_" + scenario + "_" + "_" + input_type + "_noise_" + str(noise_std) + ""
 else:
-  filename_prefix = plant_type + "_" + robust + "_" + str(rbParam) + "_vx_" + str(int(vx)) + "_gain_" + gain2str(adaptive_gain) + "_" + scenario + "_" "u04_005sin05" + "_noise_" + str(noise_std) + ""
-  # filename_prefix = plant_type + "_" + robust + "_" + str(rbParam) + "_vx_" + str(int(vx)) + "_gain_" + gain2str(adaptive_gain) + "_" + scenario + "_" "u04_case01" + "_noise_" + str(noise_std) + ""
+  filename_prefix = plant_type + "_" + robust + "_" + str(rbParam) + "_vx_" + str(int(vx)) + "_gain_" + gain2str(adaptive_gain) + "_" + scenario + "_u04_" + input_type + "_noise_" + str(noise_std) + ""
+  # filename_prefix = plant_type + "_" + robust + "_" + str(rbParam) + "_vx_" + str(int(vx)) + "_gain_" + gain2str(adaptive_gain) + "_" + scenario + "_" + input_type+ "_noise_" + str(noise_std) + ""
+
+if (not use_adaptive) :
+  filename_prefix = "noadaptation_" + filename_prefix
 
 ## processing
 if plant_type == "vehicle":
@@ -216,6 +233,7 @@ initTheta[-1] = 1.0
 header = data_header(plantParam, modelParam)
 
 ### give initial parameters
+'''
 if (use_initial_guess):
   estTheta = estimate_theta(pss, mss, sv_dim, lbd0)
   print(estTheta)
@@ -228,6 +246,15 @@ else:
 
   estTheta = estimate_theta(tss, mss, sv_dim, lbd0)
   initTheta = estTheta
+'''
+if (use_initial_guess):
+  tempParam = VehicleParam()
+  A, B, C, D = linear_vehicle_model(tempParam, vx)
+  tss = ss(A, B, C, D)
+
+  estTheta = estimate_theta(tss, mss, sv_dim, lbd0)
+  initTheta = estTheta
+
 
 adaptive_ctrl.theta = initTheta
 print("Init Theta")

@@ -207,7 +207,10 @@ class ConstraintAdaptiveControllerN2(AdaptiveController):
     '''
 
     v = self.theta.T.dot(w) #- e1*phi.T.dot(phi)/(1 + phi.T.dot(phi))
-    u = np.clip(np.array(v), self.umin, self.umax)
+    if (self.umin is not None and self.umax is not None):
+      u = np.clip(np.array(v), self.umin, self.umax)
+    else :
+      u = v
     self.du = np.array(u - v)
 
     return np.array(u)
