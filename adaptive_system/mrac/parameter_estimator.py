@@ -4,8 +4,13 @@ from control.matlab import *
 
 def get_tf_params(sys):
   num, den = tfdata(sys)
-  k = num[0][0][0]
-  z = num[0][0]/k
+  n = num[0][0]
+  # Strip leading near-zero coefficients (numerical noise from ss2tf)
+  tol = np.max(np.abs(n)) * 1e-10
+  while len(n) > 1 and abs(n[0]) < tol:
+    n = n[1:]
+  k = n[0]
+  z = n / k
   r = den[0][0]
   return k, z, r
 
@@ -49,9 +54,14 @@ def solve_opt_parameters(kp: float, zp: list, rp: list, km: float, zm: list, rm:
 
   sol = solve(eqs, t1 + t2 + t3)
 
+  # Substitute 0 for any free variables (underdetermined system)
+  all_params = t1 + t2 + t3
+  free_subs = {p: 0 for p in all_params if p not in sol}
+
   res = {}
   for k in sol.keys():
-    res[str(k)] = float(sol[k])
+    val = sol[k].subs(free_subs)
+    res[str(k)] = float(val.evalf())
 
   return res
 
