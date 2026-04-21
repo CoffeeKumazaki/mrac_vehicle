@@ -1,0 +1,16 @@
+[project]
+name = "util"
+version = "0.0.1"
+description = "Utility functions"
+requires-python = ">=3.9"
+dependencies = [
+    "numpy",
+]
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+py-modules = ["util", "bezier"]
+packages = []

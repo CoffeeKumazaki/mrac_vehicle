@@ -1,0 +1,29 @@
+[project]
+name = "mrac-vehicle"
+version = "0.0.1"
+description = "MRAC vehicle dynamics simulation"
+requires-python = ">=3.9"
+dependencies = [
+    "numpy",
+    "scipy",
+    "sympy",
+    "control",
+    "matplotlib",
+    "tqdm",
+    "cvxopt",
+    "pykalman",
+    "adaptive-system",
+    "vehicle-dynamics",
+    "util",
+]
+
+[project.optional-dependencies]
+full = ["slycot"]
+
+[tool.uv.sources]
+adaptive-system = { workspace = true }
+vehicle-dynamics = { workspace = true }
+util = { workspace = true }
+
+[tool.uv.workspace]
+members = ["adaptive_system", "vehicle_dynamics", "util"]

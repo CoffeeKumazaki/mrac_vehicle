@@ -1,0 +1,18 @@
+[project]
+name = "vehicle-dynamics"
+version = "0.0.1"
+description = "Vehicle dynamics simulation"
+requires-python = ">=3.9"
+dependencies = [
+    "numpy",
+    "scipy",
+    "control",
+]
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+py-modules = ["linear_system", "vehicle_params", "vehicle_dynamics", "vehicle_LTI", "vehicle", "longitudial_system", "vehicle_tf_calculator"]
+packages = []

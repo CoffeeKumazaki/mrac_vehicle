@@ -1,0 +1,18 @@
+[project]
+name = "adaptive-system"
+version = "0.0.1"
+description = "Adaptive control algorithms"
+requires-python = ">=3.9"
+dependencies = [
+    "numpy",
+    "scipy",
+    "sympy",
+    "control",
+]
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["mrac", "backstepping"]
