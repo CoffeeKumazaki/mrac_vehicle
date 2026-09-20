@@ -1,0 +1,500 @@
+<meta charset="utf-8">
+<title>Virtual Towbar</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@500;700&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<style>
+  :root {
+    --paper: #f6f6f3;
+    --card: #fdfdfb;
+    --ink: #17181a;
+    --sub: #5c5f64;
+    --line: #e2e1da;
+    --chipbg: #ecece5;
+    --accent: #2a78d6;
+    --accent-soft: rgba(42, 120, 214, 0.12);
+    --mrac: #eb6834;
+    --bsna: #1baf7a;
+    --pid: #eda100;
+    --ff: #4a3aa7;
+    --good: #0ca30c;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #141518;
+      --card: #1b1c20;
+      --ink: #f0f0ec;
+      --sub: #a6a8a4;
+      --line: #2b2d31;
+      --chipbg: #24262b;
+      --accent: #3987e5;
+      --accent-soft: rgba(57, 135, 229, 0.18);
+      --mrac: #d95926;
+      --bsna: #199e70;
+      --pid: #c98500;
+      --ff: #9085e9;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #141518;
+    --card: #1b1c20;
+    --ink: #f0f0ec;
+    --sub: #a6a8a4;
+    --line: #2b2d31;
+    --chipbg: #24262b;
+    --accent: #3987e5;
+    --accent-soft: rgba(57, 135, 229, 0.18);
+    --mrac: #d95926;
+    --bsna: #199e70;
+    --pid: #c98500;
+    --ff: #9085e9;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: "Zen Kaku Gothic New", "Hiragino Sans", system-ui, sans-serif;
+    font-weight: 500;
+  }
+  .wrap { max-width: 1060px; margin: 0 auto; padding: 20px 20px 48px; display: flex; flex-direction: column; gap: 14px; }
+  header { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+  h1 { font-size: 1.35rem; font-weight: 700; margin: 0; letter-spacing: 0.01em; }
+  h1 .en { color: var(--accent); }
+  .subtitle { color: var(--sub); font-size: 0.82rem; }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .chips .grouplab { font-size: 0.72rem; letter-spacing: 0.08em; color: var(--sub); min-width: 34px; }
+  .chips span[id] { display: inline-flex; flex-wrap: wrap; gap: 8px; }
+  .chip {
+    border: 1px solid var(--line);
+    background: var(--card);
+    color: var(--sub);
+    border-radius: 999px;
+    padding: 6px 14px;
+    font: inherit;
+    font-size: 0.82rem;
+    cursor: pointer;
+  }
+  .chip[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); color: var(--ink); }
+  .chip:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .stage { background: var(--card); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+  canvas { display: block; width: 100%; }
+
+  .transport { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .btn {
+    border: 1px solid var(--line); background: var(--card); color: var(--ink);
+    border-radius: 8px; padding: 7px 16px; font: inherit; font-size: 0.9rem; cursor: pointer;
+    min-width: 84px;
+  }
+  .seg-btns { display: flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  .seg-btns button {
+    border: 0; background: var(--card); color: var(--sub); padding: 7px 12px;
+    font: inherit; font-size: 0.82rem; cursor: pointer; border-left: 1px solid var(--line);
+  }
+  .seg-btns button:first-child { border-left: 0; }
+  .seg-btns button[aria-pressed="true"] { background: var(--accent-soft); color: var(--ink); }
+  .scrub { flex: 1; min-width: 220px; accent-color: var(--accent); }
+  label.tgl { display: inline-flex; align-items: center; gap: 6px; font-size: 0.82rem; color: var(--sub); cursor: pointer; }
+  label.tgl input { accent-color: var(--accent); }
+
+  .telemetry { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; }
+  .cell { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; }
+  .cell .k { font-size: 0.7rem; letter-spacing: 0.08em; color: var(--sub); }
+  .cell .v { font-family: "IBM Plex Mono", monospace; font-size: 1.15rem; font-variant-numeric: tabular-nums; margin-top: 2px; }
+  .cell .v .unit { font-size: 0.72rem; color: var(--sub); margin-left: 3px; }
+
+  details { border: 1px solid var(--line); border-radius: 10px; background: var(--card); padding: 10px 16px; }
+  summary { cursor: pointer; font-size: 0.88rem; color: var(--sub); }
+  table { border-collapse: collapse; margin-top: 10px; font-size: 0.85rem; width: 100%; max-width: 560px; }
+  th, td { text-align: left; padding: 5px 14px 5px 0; border-bottom: 1px solid var(--line); }
+  td.num, th.num { text-align: right; font-family: "IBM Plex Mono", monospace; font-variant-numeric: tabular-nums; }
+  .note { color: var(--sub); font-size: 0.78rem; line-height: 1.7; }
+  .legend { display: flex; gap: 18px; flex-wrap: wrap; font-size: 0.78rem; color: var(--sub); }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .sw { width: 18px; height: 3px; border-radius: 2px; display: inline-block; }
+</style>
+
+<div class="wrap">
+  <header>
+    <div>
+      <h1><span class="en">Virtual Towbar</span> — 電子牽引シミュレーション</h1>
+      <div class="subtitle">LTI車両・vx = 10 m/s・適応フェーズ(0–120 s) → 高速道路走行(120–300 s)</div>
+    </div>
+  </header>
+
+  <div class="chips" role="group" aria-label="車両">
+    <span class="grouplab">車両</span>
+    <span id="plantChips"></span>
+  </div>
+  <div class="chips" role="group" aria-label="制御方式">
+    <span class="grouplab">制御</span>
+    <span id="ctrlChips"></span>
+  </div>
+
+  <div class="stage"><canvas id="road" height="300" aria-label="走行アニメーション"></canvas></div>
+
+  <div class="transport">
+    <button class="btn" id="play">再生</button>
+    <div class="seg-btns" id="speeds" role="group" aria-label="再生速度"></div>
+    <label class="tgl"><input type="checkbox" id="exag">誤差を20倍で表示</label>
+    <input class="scrub" id="scrub" type="range" min="0" max="299.9" step="0.1" value="0" aria-label="時間">
+  </div>
+
+  <div class="telemetry">
+    <div class="cell"><div class="k">時刻</div><div class="v"><span id="tv">0.0</span><span class="unit">s</span></div></div>
+    <div class="cell"><div class="k">フェーズ</div><div class="v" id="ph" style="font-size:0.95rem">—</div></div>
+    <div class="cell"><div class="k">横偏差誤差</div><div class="v"><span id="ev">0</span><span class="unit" id="evu">mm</span></div></div>
+    <div class="cell"><div class="k">操舵角</div><div class="v"><span id="uv">0</span><span class="unit" id="uvu">mrad</span></div></div>
+    <div class="cell"><div class="k">走行距離</div><div class="v"><span id="sv">0</span><span class="unit">m</span></div></div>
+  </div>
+
+  <div class="stage"><canvas id="strip" height="110" aria-label="誤差の時系列"></canvas></div>
+
+  <div class="legend">
+    <span><span class="sw" style="background:#d9d6c6"></span>先導車の軌跡（参照 yr）</span>
+    <span><span class="sw" id="carSw" style="background:var(--accent)"></span>被牽引車（プラント yp）</span>
+    <span><span class="sw" style="background:#8b8f95; height:0; border-top:2px dashed #8b8f95"></span>仮想トウバー</span>
+  </div>
+
+  <details>
+    <summary>区間別メトリクス（表）</summary>
+    <table id="mtable"><thead><tr><th>区間</th><th class="num">RMS誤差 [mm]</th><th class="num">最大誤差 [mm]</th></tr></thead><tbody></tbody></table>
+  </details>
+
+  <p class="note">
+    縦方向（横偏差）は拡大表示。参照 r：適応フェーズは3周波の正弦合成によるジグザグ、以降は緩カーブ・Sカーブ・車線変更・大回りカーブ。
+    バックステッピング（適応）の誤差はmm級のため、動きを見るときは「誤差を20倍で表示」を推奨。
+    固定PDは名目（健全車）モデルでループ整形した位相進み補償で、両車とも安定だが誤差は数cm〜20 cm級。適応バックステッピングはその5〜10倍精密（mm級）で、車種ごとの再調整も不要。
+    一方、適応なしバックステッピング（θ̂凍結）はトラックで閉ループが不安定になり発散する（固有値解析で確認済み）。
+    「自車操舵の再生（FF）」は先導車が被牽引車を自分と同一と仮定して自身の操舵をそのまま送る方式——計測フィードバックがないため誤差が補正されず、マヌーバごとに蓄積していく（乗用車で300秒後0.56 m、増加中）。
+  </p>
+</div>
+
+<script src="data.js"></script>
+<script>
+(function () {
+  const D = window.TOW_DATA;
+  const dt = D.dt, vx = D.vx, N = D.variants.vehicle_bs.yp.length, T = N * dt;
+
+  let plant = "vehicle", ctrlKind = "bs";
+  let cur = plant + "_" + ctrlKind;
+  let t = 0, playing = false, speed = 4, exag = false;
+
+  // ----- theme tokens for canvas chrome -----
+  let tok = {};
+  function readTok() {
+    const cs = getComputedStyle(document.documentElement);
+    tok = {
+      card: cs.getPropertyValue("--card").trim(),
+      ink: cs.getPropertyValue("--ink").trim(),
+      sub: cs.getPropertyValue("--sub").trim(),
+      line: cs.getPropertyValue("--line").trim(),
+      accent: cs.getPropertyValue("--accent").trim(),
+      mrac: cs.getPropertyValue("--mrac").trim(),
+      bsna: cs.getPropertyValue("--bsna").trim(),
+      pid: cs.getPropertyValue("--pid").trim(),
+      ff: cs.getPropertyValue("--ff").trim(),
+    };
+  }
+  readTok();
+  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", readTok);
+  new MutationObserver(readTok).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+
+  const carColor = () => ({ bs: tok.accent, bs_na: tok.bsna, mrac: tok.mrac, pid: tok.pid, ff: tok.ff }[ctrlKind]);
+
+  // ----- data access -----
+  function sample(arr, tt) {
+    const x = Math.min(Math.max(tt / dt, 0), N - 1.001);
+    const i = Math.floor(x), f = x - i;
+    return arr[i] * (1 - f) + arr[i + 1] * f;
+  }
+  const V = () => D.variants[cur];
+  function segAt(tt) {
+    for (const s of D.segments) if (tt >= s.lo && tt < s.hi) return s.name;
+    return "直線";
+  }
+
+  // ----- road canvas -----
+  const road = document.getElementById("road");
+  const rctx = road.getContext("2d");
+  const XS = 14, YS = 20;           // px per meter (mildly anisotropic)
+  const LANE = 3.5, NLANES = 3;     // 3-lane carriageway, own lane in the middle
+  const EDGE = LANE * NLANES / 2;   // 5.25 m
+  const CARX = 0.30;                // car anchor as fraction of width
+  const ROAD = { asphalt: "#2c2e31", shoulder: "#232527", grass: "#26302a", paint: "#d9d6c6", ghost: "#c9ccd2", link: "#8b8f95" };
+
+  function fitCanvas(cv) {
+    const w = cv.clientWidth, dpr = window.devicePixelRatio || 1;
+    if (cv.width !== Math.round(w * dpr)) {
+      cv.width = Math.round(w * dpr);
+      cv.height = Math.round(cv.clientHeight * dpr);
+    }
+    const ctx = cv.getContext("2d");
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return { w, h: cv.clientHeight };
+  }
+
+  function drawCarGlyph(ctx, x, y, psi, color, ghost) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(-psi);
+    const L = 4.5 * XS, W = 1.8 * YS;   // car drawn to physical scale
+    ctx.beginPath();
+    ctx.roundRect(-L / 2, -W / 2, L, W, 7);
+    if (ghost) {
+      ctx.setLineDash([4, 3]);
+      ctx.strokeStyle = ROAD.ghost;
+      ctx.lineWidth = 1.6;
+      ctx.stroke();
+    } else {
+      ctx.fillStyle = color;
+      ctx.fill();
+      ctx.fillStyle = "rgba(255,255,255,0.28)";           // windshield
+      ctx.fillRect(L / 2 - 14, -W / 2 + 3, 6, W - 6);
+    }
+    ctx.restore();
+  }
+
+  function drawRoad() {
+    const { w, h } = fitCanvas(road);
+    const cy = h / 2;
+    const yof = (m) => cy - m * YS;
+    const s0 = vx * t;                       // car world x [m]
+    const xof = (m) => (m - s0) * XS + w * CARX;
+
+    rctx.fillStyle = ROAD.grass;
+    rctx.fillRect(0, 0, w, h);
+    rctx.fillStyle = ROAD.shoulder;
+    rctx.fillRect(0, yof(EDGE + 0.9), w, (EDGE + 0.9) * 2 * YS);
+    rctx.fillStyle = ROAD.asphalt;
+    rctx.fillRect(0, yof(EDGE), w, EDGE * 2 * YS);
+
+    // solid edge lines at the carriageway borders
+    rctx.strokeStyle = ROAD.paint;
+    rctx.lineWidth = 2.5;
+    for (const yb of [EDGE, -EDGE]) {
+      rctx.beginPath(); rctx.moveTo(0, yof(yb)); rctx.lineTo(w, yof(yb)); rctx.stroke();
+    }
+    // broken white lane dividers, dashed in world coordinates (5 m dash / 8 m gap)
+    rctx.lineWidth = 2;
+    for (const yb of [LANE / 2, -LANE / 2]) {
+      rctx.beginPath();
+      const cycle = 13;
+      for (let m = Math.floor((s0 - w * CARX / XS) / cycle) * cycle; xof(m) < w + cycle * XS; m += cycle) {
+        rctx.moveTo(xof(m), yof(yb)); rctx.lineTo(xof(m + 5), yof(yb));
+      }
+      rctx.stroke();
+    }
+    // distance posts every 50 m
+    rctx.fillStyle = "rgba(255,255,255,0.35)";
+    rctx.font = "10px 'IBM Plex Mono', monospace";
+    for (let m = Math.ceil((s0 - w * CARX / XS) / 50) * 50; xof(m) < w; m += 50) {
+      rctx.fillRect(xof(m), yof(EDGE) - 8, 2, 8);
+      rctx.fillText(m + "m", xof(m) + 4, yof(EDGE) - 10);
+    }
+
+    // reference path (lead-vehicle trail)
+    const yrArr = V().yr, ypArr = V().yp;
+    rctx.strokeStyle = ROAD.paint;
+    rctx.lineWidth = 1.4;
+    rctx.setLineDash([8, 7]);
+    rctx.beginPath();
+    for (let px = 0; px <= w; px += 6) {
+      const tm = ((px - w * CARX) / XS + s0) / vx;
+      const y = yof(sample(yrArr, tm));
+      px === 0 ? rctx.moveTo(px, y) : rctx.lineTo(px, y);
+    }
+    rctx.stroke();
+    rctx.setLineDash([]);
+
+    // towed car (with optional error exaggeration)
+    const k = exag ? 20 : 1;
+    const yr0 = sample(yrArr, t);
+    const yp0 = yr0 + k * (sample(ypArr, t) - yr0);
+    const dy = (sample(ypArr, t + 0.3) - sample(ypArr, t - 0.3)) / 0.6;
+    const psi = Math.atan2(k * dy, vx) * (YS / XS);
+
+    // ghost lead vehicle + virtual towbar link
+    const LOOK = 12; // m ahead
+    const tg = t + LOOK / vx;
+    const gx = xof(s0 + LOOK), gy = yof(sample(yrArr, tg));
+    const cx = xof(s0), cyv = yof(yp0);
+    rctx.strokeStyle = ROAD.link;
+    rctx.lineWidth = 1.6;
+    rctx.setLineDash([6, 5]);
+    rctx.beginPath(); rctx.moveTo(cx + 2.6 * XS, cyv); rctx.lineTo(gx - 2.6 * XS, gy); rctx.stroke();
+    rctx.setLineDash([]);
+    const gdy = (sample(yrArr, tg + 0.3) - sample(yrArr, tg - 0.3)) / 0.6;
+    drawCarGlyph(rctx, gx, gy, Math.atan2(gdy, vx) * (YS / XS), null, true);
+    drawCarGlyph(rctx, cx, cyv, psi, carColor(), false);
+
+    // phase tag on canvas
+    rctx.fillStyle = "rgba(0,0,0,0.45)";
+    rctx.beginPath(); rctx.roundRect(12, 12, 150, 26, 6); rctx.fill();
+    rctx.fillStyle = "#f0f0ec";
+    rctx.font = "12px 'Zen Kaku Gothic New', sans-serif";
+    rctx.fillText(segAt(t), 24, 29);
+    if (exag) {
+      rctx.fillStyle = "rgba(0,0,0,0.45)";
+      rctx.beginPath(); rctx.roundRect(12, 44, 96, 22, 6); rctx.fill();
+      rctx.fillStyle = "#ffd37a";
+      rctx.fillText("誤差 ×20", 24, 59);
+    }
+    if (D.notes && D.notes[cur]) {
+      rctx.fillStyle = "rgba(120,20,20,0.75)";
+      rctx.beginPath(); rctx.roundRect(w - 172, 12, 160, 26, 6); rctx.fill();
+      rctx.fillStyle = "#ffe0e0";
+      rctx.fillText("⚠ " + D.notes[cur], w - 160, 29);
+    }
+  }
+
+  // ----- error strip chart -----
+  const strip = document.getElementById("strip");
+  const sctx = strip.getContext("2d");
+  function drawStrip() {
+    const { w, h } = fitCanvas(strip);
+    sctx.fillStyle = tok.card;
+    sctx.fillRect(0, 0, w, h);
+    const yp = V().yp, yr = V().yr;
+    let emax = 0.001;
+    for (let i = 0; i < N; i++) emax = Math.max(emax, Math.abs(yp[i] - yr[i]));
+    const pad = 12, cy = h / 2, sy = (h / 2 - pad) / emax, sx = w / T;
+
+    // segment shading
+    D.segments.forEach((s, i) => {
+      if (s.name !== "直線") {
+        sctx.fillStyle = i === 0 ? "rgba(137,135,129,0.10)" : "rgba(42,120,214,0.06)";
+        sctx.fillRect(s.lo * sx, 0, (s.hi - s.lo) * sx, h);
+      }
+    });
+    sctx.strokeStyle = tok.line;
+    sctx.beginPath(); sctx.moveTo(0, cy); sctx.lineTo(w, cy); sctx.stroke();
+
+    sctx.strokeStyle = carColor();
+    sctx.lineWidth = 1.4;
+    sctx.beginPath();
+    for (let i = 0; i < N; i++) {
+      const x = i * dt * sx, y = cy - (yp[i] - yr[i]) * sy;
+      i === 0 ? sctx.moveTo(x, y) : sctx.lineTo(x, y);
+    }
+    sctx.stroke();
+
+    sctx.fillStyle = tok.sub;
+    sctx.font = "10px 'IBM Plex Mono', monospace";
+    sctx.fillText("誤差 e  ±" + (emax >= 0.1 ? emax.toFixed(2) + " m" : (emax * 1000).toFixed(0) + " mm"), 8, 13);
+
+    // playhead
+    sctx.strokeStyle = tok.ink;
+    sctx.beginPath(); sctx.moveTo(t * sx, 0); sctx.lineTo(t * sx, h); sctx.stroke();
+  }
+
+  // ----- telemetry / table -----
+  const $ = (id) => document.getElementById(id);
+  function updateTelemetry() {
+    const e = sample(V().yp, t) - sample(V().yr, t);
+    $("tv").textContent = t.toFixed(1);
+    $("ph").textContent = segAt(t);
+    if (Math.abs(e) >= 0.1) {
+      $("ev").textContent = Math.abs(e) >= 1000 ? e.toExponential(2) : e.toFixed(3);
+      $("evu").textContent = "m";
+    } else {
+      $("ev").textContent = (e * 1000).toFixed(1);
+      $("evu").textContent = "mm";
+    }
+    const uNow = sample(V().u, t);
+    if (Math.abs(uNow) >= 1) {
+      $("uv").textContent = Math.abs(uNow) >= 1000 ? uNow.toExponential(2) : uNow.toFixed(2);
+      $("uvu").textContent = "rad";
+    } else {
+      $("uv").textContent = (uNow * 1000).toFixed(3);
+      $("uvu").textContent = "mrad";
+    }
+    $("sv").textContent = Math.round(vx * t);
+    $("scrub").value = t;
+  }
+  function fillTable() {
+    const tb = $("mtable").querySelector("tbody");
+    tb.innerHTML = "";
+    const fmt = (v) => (Math.abs(v) >= 1 ? (v >= 1000 ? v.toExponential(1) + " m" : v.toFixed(2) + " m") : (v * 1000).toFixed(1));
+    for (const m of V().metrics) {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td>${m.seg}（${m.lo}–${m.hi}s）</td><td class="num">${fmt(m.rms)}</td><td class="num">${fmt(m.max)}</td>`;
+      tb.appendChild(tr);
+    }
+  }
+
+  // ----- controls -----
+  function chipGroup(boxId, entries, get, set) {
+    const box = $(boxId);
+    Object.entries(entries).forEach(([k, name]) => {
+      const b = document.createElement("button");
+      b.className = "chip";
+      b.textContent = name;
+      b.setAttribute("aria-pressed", String(k === get()));
+      b.addEventListener("click", () => {
+        set(k);
+        cur = plant + "_" + ctrlKind;
+        box.querySelectorAll(".chip").forEach((c) => c.setAttribute("aria-pressed", "false"));
+        b.setAttribute("aria-pressed", "true");
+        document.getElementById("carSw").style.background = carColor();
+        fillTable();
+        render();
+      });
+      box.appendChild(b);
+    });
+  }
+  chipGroup("plantChips", D.plants, () => plant, (k) => { plant = k; });
+  chipGroup("ctrlChips", D.ctrls, () => ctrlKind, (k) => { ctrlKind = k; });
+
+  const play = $("play");
+  function setPlaying(p) {
+    playing = p;
+    play.textContent = playing ? "一時停止" : "再生";
+  }
+  play.addEventListener("click", () => setPlaying(!playing));
+  addEventListener("keydown", (ev) => {
+    if (ev.code === "Space" && ev.target.tagName !== "INPUT" && ev.target.tagName !== "BUTTON") {
+      ev.preventDefault(); setPlaying(!playing);
+    }
+  });
+
+  const spd = $("speeds");
+  [1, 4, 16].forEach((s) => {
+    const b = document.createElement("button");
+    b.textContent = "×" + s;
+    b.setAttribute("aria-pressed", String(s === speed));
+    b.addEventListener("click", () => {
+      speed = s;
+      spd.querySelectorAll("button").forEach((c) => c.setAttribute("aria-pressed", String(+c.textContent.slice(1) === speed)));
+    });
+    spd.appendChild(b);
+  });
+
+  $("exag").addEventListener("change", (ev) => { exag = ev.target.checked; render(); });
+  $("scrub").addEventListener("input", (ev) => { t = +ev.target.value; render(); });
+
+  // ----- loop -----
+  function render() {
+    drawRoad();
+    drawStrip();
+    updateTelemetry();
+  }
+  let last = performance.now();
+  function loop(now) {
+    const dtr = (now - last) / 1000;
+    last = now;
+    if (playing) {
+      t += dtr * speed;
+      if (t >= T - 0.11) { t = T - 0.11; setPlaying(false); }
+      render();
+    }
+    requestAnimationFrame(loop);
+  }
+
+  fillTable();
+  render();
+  if (!matchMedia("(prefers-reduced-motion: reduce)").matches) setPlaying(true);
+  requestAnimationFrame(loop);
+  addEventListener("resize", render);
+})();
+</script>
